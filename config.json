@@ -1,0 +1,4 @@
+{
+    "server_url": "http://localhost:65432/api/aggregate",
+    "interval": 60
+}
