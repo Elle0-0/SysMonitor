@@ -19,7 +19,7 @@ def update_database(metrics_dto):
     cursor.execute("INSERT INTO device_metrics (device_id, metric_type_id, value, timestamp) VALUES (?, ?, ?, ?)", (metrics_dto.device_id, 2, metrics_dto.memory_usage, timestamp))
     
     # Insert Air Quality Index into the database
-    cursor.execute("INSERT INTO third_party_metrics (name, value, source, timestamp) VALUES (?, ?, ?, ?)", ("Air Quality Index", metrics_dto.air_quality_index, "OpenWeatherMap", timestamp))
+    cursor.execute("INSERT INTO third_party_metrics (name, value, source, latitude, longitude, timestamp) VALUES (?, ?, ?, ?, ?, ?)", ("Air Quality Index", metrics_dto.air_quality_index, "OpenWeatherMap", metrics_dto.latitude, metrics_dto.longitude, timestamp))
     
     conn.commit()
     cursor.close()

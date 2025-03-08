@@ -1,49 +1,48 @@
 import sys
 import os
 import socket
-import threading
 import logging
 import json
-import sqlite3
+import time
 
 # Add the project root directory to the system path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from metrics.collect_metrics import get_cpu_usage, get_memory_usage, get_air_quality_indices
 from dto import MetricsDTO
-from lib_database.update_database import update_database
 
-def handle_client(conn, addr):
-    logging.info(f"Connected by {addr}")
-    with conn:
-        while True:
-            data = conn.recv(1024)
-            if not data:
-                logging.warning("Received empty data")
-                break
-            logging.info(f"Received data: {data.decode()}")
-            try:
-                metrics_dto = MetricsDTO.from_dict(json.loads(data.decode()))
-                # Process the data and send a response
-                response = f"Processed: {metrics_dto.to_dict()}"
-                conn.sendall(response.encode())
-                # Update the database
-                update_database(metrics_dto)
-            except json.JSONDecodeError as e:
-                logging.error(f"JSON decode error: {e}")
-                break
-            except sqlite3.OperationalError as e:
-                logging.error(f"SQLite operational error: {e}")
-                break
+CLIENT_HOST = 'localhost'
+CLIENT_PORT = 65433
 
-def start_tcp_server(host='0.0.0.0', port=65432):
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind((host, port))
-        s.listen()
-        logging.info(f"Server listening on {host}:{port}")
-        while True:
-            conn, addr = s.accept()
-            client_thread = threading.Thread(target=handle_client, args=(conn, addr))
-            client_thread.start()
+def collect_and_send_metrics():
+    while True:
+        try:
+            cpu_usage = get_cpu_usage()
+            memory_usage = get_memory_usage()
+            air_quality_indices = get_air_quality_indices()
+            for location in air_quality_indices:
+                name, lat, lon, air_quality_index = location
+                metrics_dto = MetricsDTO(
+                    device_id=1,
+                    cpu_usage=cpu_usage,
+                    memory_usage=memory_usage,
+                    air_quality_index=air_quality_index,
+                    latitude=lat,
+                    longitude=lon
+                )
+                data_json = json.dumps(metrics_dto.to_dict())
+                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                    s.connect((CLIENT_HOST, CLIENT_PORT))
+                    s.sendall(data_json.encode())
+                    response = s.recv(1024)
+                    logging.info(f"Received response: {response.decode()}")
+        except Exception as e:
+            logging.error(f"An error occurred: {e}")
+        time.sleep(5)  # Collect and send metrics every 5 seconds
+
+def start_tcp_server():
+    logging.info("Starting metric collection and sending to client")
+    collect_and_send_metrics()
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

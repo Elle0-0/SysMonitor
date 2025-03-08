@@ -1,6 +1,5 @@
 import sys
 import os
-import time
 import logging
 import socket
 import json
@@ -8,39 +7,38 @@ import json
 # Add the project root directory to the system path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from lib_metrics_datamodel.metrics_client_datamodel import get_cpu_usage, get_memory_usage, get_air_quality_index
-from lib_config.config import load_config
 from dto import MetricsDTO
-
-# Load configuration
-config = load_config()
+from lib_database.update_database import update_database
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 SERVER_HOST = 'localhost'
-SERVER_PORT = 65432
-INTERVAL = config['interval']
-DEVICE_ID = 1  # Set the device ID
+SERVER_PORT = 65433
 
-def collect_and_send_metrics():
-    try:
-        cpu_usage = get_cpu_usage()
-        memory_usage = get_memory_usage()
-        air_quality_index = get_air_quality_index()
-
-        metrics_dto = MetricsDTO(DEVICE_ID, cpu_usage, memory_usage, air_quality_index)
-        data = json.dumps(metrics_dto.to_dict())
-
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.connect((SERVER_HOST, SERVER_PORT))
-            s.sendall(data.encode())
-            response = s.recv(1024)
-            logging.info(f"Received response: {response.decode()}")
-    except Exception as e:
-        logging.error(f"An error occurred: {e}")
+def receive_data():
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind((SERVER_HOST, SERVER_PORT))
+        s.listen()
+        logging.info(f"Listening on {SERVER_HOST}:{SERVER_PORT}")
+        while True:
+            conn, addr = s.accept()
+            with conn:
+                logging.info(f"Connected by {addr}")
+                data = conn.recv(1024)
+                if not data:
+                    logging.warning("Received empty data")
+                    continue
+                logging.info(f"Received data: {data.decode()}")
+                try:
+                    metrics_dto = MetricsDTO.from_dict(json.loads(data.decode()))
+                    update_database(metrics_dto)
+                    response = f"Processed: {metrics_dto.to_dict()}"
+                    conn.sendall(response.encode())
+                except json.JSONDecodeError as e:
+                    logging.error(f"JSON decode error: {e}")
+                except Exception as e:
+                    logging.error(f"An error occurred: {e}")
 
 if __name__ == "__main__":
-    while True:
-        collect_and_send_metrics()
-        time.sleep(INTERVAL)
+    receive_data()

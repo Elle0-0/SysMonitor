@@ -1,0 +1,7 @@
+Flask==2.0.1
+requests==2.26.0
+SQLAlchemy==1.4.22
+psutil==5.8.0
+dash==2.0.0
+plotly==5.3.1
+schedule==1.1.0

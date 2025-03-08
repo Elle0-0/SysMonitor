@@ -39,6 +39,8 @@ class ThirdPartyMetric(Base):
     name = Column(String, nullable=False)
     value = Column(Float, nullable=False)
     source = Column(String, nullable=False)
+    latitude = Column(Float, nullable=False)
+    longitude = Column(Float, nullable=False)
     timestamp = Column(DateTime, default=datetime.utcnow)
 
 class MetricType(Base):
@@ -49,3 +51,6 @@ class MetricType(Base):
 DATABASE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), 'sysmonitor.db'))
 engine = create_engine(f'sqlite:///{DATABASE_PATH}')
 Session = sessionmaker(bind=engine)
+
+# Create tables if they don't exist
+Base.metadata.create_all(engine)
