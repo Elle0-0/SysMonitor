@@ -13,7 +13,7 @@ from lib_database.update_database import update_database
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-SERVER_HOST = 'localhost'
+SERVER_HOST = '0.0.0.0'
 SERVER_PORT = 65433
 
 def receive_data():

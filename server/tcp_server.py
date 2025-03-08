@@ -11,7 +11,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from metrics.collect_metrics import get_cpu_usage, get_memory_usage, get_air_quality_indices
 from dto import MetricsDTO
 
-CLIENT_HOST = 'localhost'
+CLIENT_HOST = 'MichelleVaz.pythonanywhere.com'
 CLIENT_PORT = 65433
 
 def collect_and_send_metrics():
