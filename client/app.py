@@ -20,6 +20,24 @@ DATABASE_URL = os.getenv('DATABASE_URL')
 engine = create_engine(DATABASE_URL, pool_recycle=280)
 Session = scoped_session(sessionmaker(bind=engine))
 
+@app.before_first_request
+def ensure_metric_types():
+    session = Session()
+    try:
+        # Check if the metric types exist
+        existing_metric_types = session.query(MetricType).all()
+        if not existing_metric_types:
+            # Insert default metric types if not found
+            cpu_metric_type = MetricType(name="CPU Usage")
+            ram_metric_type = MetricType(name="RAM Usage")
+            session.add(cpu_metric_type)
+            session.add(ram_metric_type)
+            session.commit()
+    except Exception as e:
+        logging.error(f"Error ensuring metric types: {e}")
+    finally:
+        session.close()
+
 @app.route('/api/data', methods=['POST'])
 def report():
     session = Session()  # Creating the scoped session
