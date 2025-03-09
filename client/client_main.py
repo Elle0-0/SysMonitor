@@ -21,7 +21,7 @@ SERVER_PORT = 65433
 DATABASE_URL = os.getenv('DATABASE_URL')
 
 # Create a database engine with connection pooling disabled
-engine = create_engine(DATABASE_URL, poolclass=None)
+engine = create_engine(DATABASE_URL, pool_recycle=280)
 
 # Scoped session to ensure thread-local session management
 Session = scoped_session(sessionmaker(bind=engine))
