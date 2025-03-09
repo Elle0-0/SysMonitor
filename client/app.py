@@ -1,8 +1,10 @@
 import sys
 import os
+import threading
 from flask import Flask, jsonify, render_template
 import logging
 import requests  # Import the requests module
+import time
 
 # Add the parent directory to the system path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -43,5 +45,15 @@ def report():
 def index():
     return render_template('index.html')
 
+# Function to run client_main.py in a background thread
+def run_client_script():
+    time.sleep(2)  # Simulate some delay before running the script
+    exec(open("client_main.py").read())  # Execute the client_main.py script
+
 if __name__ == '__main__':
+    # Start the client_main.py script in a background thread
+    thread = threading.Thread(target=run_client_script)
+    thread.start()
+
+    # Start the Flask app
     app.run(debug=True)
