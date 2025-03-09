@@ -5,61 +5,101 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Metrics Dashboard</title>
     <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        h1, h2 {
+            text-align: center;
+        }
+        .container {
+            max-width: 1200px;
+            margin: auto;
+        }
         table {
             width: 100%;
             border-collapse: collapse;
+            margin: 20px 0;
+            background: white;
+            box-shadow: 0px 0px 10px rgba(0,0,0,0.1);
+            border-radius: 10px;
         }
         table, th, td {
-            border: 1px solid black;
+            border: 1px solid #ddd;
         }
-        th, td {
+        th {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px;
+        }
+        td {
             padding: 8px;
-            text-align: left;
+            text-align: center;
+        }
+        .dashboard {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+        }
+        iframe {
+            border: none;
+            width: 100%;
+            height: 500px;
+            border-radius: 10px;
         }
     </style>
 </head>
 <body>
-    <h1>Metrics Dashboard</h1>
+    <div class="container">
+        <h1>Metrics Dashboard</h1>
 
-    <h2>Device Metrics</h2>
-    <table id="deviceMetricsTable">
-        <thead>
-            <tr>
-                <th>Device ID</th>
-                <th>Metric Type ID</th>
-                <th>Value</th>
-                <th>Timestamp</th>
-            </tr>
-        </thead>
-        <tbody>
-            <!-- Data will be populated here -->
-        </tbody>
-    </table>
+        <div class="dashboard">
+            <div>
+                <h2>Device Metrics</h2>
+                <table id="deviceMetricsTable">
+                    <thead>
+                        <tr>
+                            <th>Device ID</th>
+                            <th>Metric Type ID</th>
+                            <th>Value</th>
+                            <th>Timestamp</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
 
-    <h2>Third Party Metrics</h2>
-    <table id="thirdPartyMetricsTable">
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>Value</th>
-                <th>Latitude</th>
-                <th>Longitude</th>
-                <th>Timestamp</th>
-            </tr>
-        </thead>
-        <tbody>
-            <!-- Data will be populated here -->
-        </tbody>
-    </table>
+            <div>
+                <h2>Third Party Metrics</h2>
+                <table id="thirdPartyMetricsTable">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Value</th>
+                            <th>Latitude</th>
+                            <th>Longitude</th>
+                            <th>Timestamp</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <h2>Live Dashboard & Map</h2>
+        <iframe src="/dashboard/"></iframe>
+    </div>
 
     <script>
         function fetchMetrics() {
             fetch('/api/metrics')
                 .then(response => response.json())
                 .then(data => {
-                    // Update Device Metrics Table
                     const deviceMetricsTable = document.getElementById("deviceMetricsTable").getElementsByTagName('tbody')[0];
-                    deviceMetricsTable.innerHTML = '';  // Clear the table
+                    deviceMetricsTable.innerHTML = '';
                     data.device_metrics.forEach(metric => {
                         const row = deviceMetricsTable.insertRow();
                         row.insertCell(0).innerText = metric.device_id;
@@ -68,9 +108,8 @@
                         row.insertCell(3).innerText = metric.timestamp;
                     });
 
-                    // Update Third Party Metrics Table
                     const thirdPartyMetricsTable = document.getElementById("thirdPartyMetricsTable").getElementsByTagName('tbody')[0];
-                    thirdPartyMetricsTable.innerHTML = '';  // Clear the table
+                    thirdPartyMetricsTable.innerHTML = '';
                     data.third_party_metrics.forEach(metric => {
                         const row = thirdPartyMetricsTable.insertRow();
                         row.insertCell(0).innerText = metric.name;
@@ -80,14 +119,11 @@
                         row.insertCell(4).innerText = metric.timestamp;
                     });
                 })
-                .catch(error => {
-                    console.error('Error fetching data:', error);
-                });
+                .catch(error => console.error('Error fetching data:', error));
         }
 
-        // Fetch metrics every 10 seconds
         setInterval(fetchMetrics, 10000);
-        fetchMetrics(); // Initial fetch when the page loads
+        fetchMetrics();
     </script>
 </body>
 </html>
