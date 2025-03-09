@@ -1,26 +1,48 @@
-import sqlite3
-import os
+import sqlalchemy
+from sqlalchemy.orm import sessionmaker
 from dto import MetricsDTO
 from datetime import datetime
+from models import Session, DeviceMetric, ThirdPartyMetric
+import os
 
 DATABASE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '../sysmonitor.db'))
 
 def update_database(metrics_dto):
-    conn = sqlite3.connect(DATABASE_PATH)
-    cursor = conn.cursor()
-    
-    # Insert a new metric snapshot
-    timestamp = datetime.utcnow()
-    cursor.execute("INSERT INTO metric_snapshots (device_id, timestamp) VALUES (?, ?)", (metrics_dto.device_id, timestamp))
-    snapshot_id = cursor.lastrowid
-    
-    # Insert CPU Usage and Memory Usage into the database
-    cursor.execute("INSERT INTO device_metrics (device_id, metric_type_id, value, timestamp) VALUES (?, ?, ?, ?)", (metrics_dto.device_id, 1, metrics_dto.cpu_usage, timestamp))
-    cursor.execute("INSERT INTO device_metrics (device_id, metric_type_id, value, timestamp) VALUES (?, ?, ?, ?)", (metrics_dto.device_id, 2, metrics_dto.memory_usage, timestamp))
-    
-    # Insert Air Quality Index into the database
-    cursor.execute("INSERT INTO third_party_metrics (name, value, source, latitude, longitude, timestamp) VALUES (?, ?, ?, ?, ?, ?)", ("Air Quality Index", metrics_dto.air_quality_index, "OpenWeatherMap", metrics_dto.latitude, metrics_dto.longitude, timestamp))
-    
-    conn.commit()
-    cursor.close()
-    conn.close()
+    session = Session()
+    try:
+        # Insert a new metric snapshot
+        timestamp = datetime.utcnow()
+        
+        # Insert CPU Usage and Memory Usage into the database
+        cpu_metric = DeviceMetric(
+            device_id=metrics_dto.device_id,
+            metric_type_id=1,  # Assuming 1 is the ID for CPU Usage
+            value=metrics_dto.cpu_usage,
+            timestamp=timestamp
+        )
+        ram_metric = DeviceMetric(
+            device_id=metrics_dto.device_id,
+            metric_type_id=2,  # Assuming 2 is the ID for RAM Usage
+            value=metrics_dto.memory_usage,
+            timestamp=timestamp
+        )
+        session.add(cpu_metric)
+        session.add(ram_metric)
+        
+        # Insert Air Quality Index into the database
+        air_quality_metric = ThirdPartyMetric(
+            name="Air Quality Index",
+            value=metrics_dto.air_quality_index,
+            source="OpenWeatherMap",
+            latitude=metrics_dto.latitude,
+            longitude=metrics_dto.longitude,
+            timestamp=timestamp
+        )
+        session.add(air_quality_metric)
+        
+        session.commit()
+    except Exception as e:
+        session.rollback()
+        raise e
+    finally:
+        session.close()

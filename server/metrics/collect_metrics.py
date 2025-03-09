@@ -11,8 +11,9 @@ def get_memory_usage():
     return memory.percent  # For percentage
 
 # OpenWeatherMap Air Pollution API (no registration required for limited access)
+# OpenWeatherMap Air Pollution API (no registration required for limited access)
 OPENWEATHERMAP_API_URL = "http://api.openweathermap.org/data/2.5/air_pollution"
-API_KEY = os.getenv("OPENWEATHERMAP_API_KEY", "")  # Use environment variable for API key
+API_KEY = os.getenv("OPENWEATHERMAP_API_KEY")  # Use environment variable for API key
 
 # List of locations in Ireland (latitude, longitude)
 LOCATIONS = [
