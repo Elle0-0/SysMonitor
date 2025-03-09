@@ -5,7 +5,7 @@ from datetime import datetime
 from models import Session, DeviceMetric, ThirdPartyMetric
 import os
 
-DATABASE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '../sysmonitor.db'))
+DATABASE_URL = os.getenv('DATABASE_URL')
 
 def update_database(metrics_dto):
     session = Session()
