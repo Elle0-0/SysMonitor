@@ -22,10 +22,10 @@ Session = scoped_session(sessionmaker(bind=engine))
 
 @app.route('/api/data', methods=['POST'])
 def report():
-    session = Session()
+    session = Session()  # Creating the scoped session
     try:
         # Get the incoming JSON data from the TCP server
-        data = request.get_json()  
+        data = request.get_json()
         metrics_dto = MetricsDTO.from_dict(data)
 
         timestamp = datetime.utcnow()
@@ -66,11 +66,11 @@ def report():
         return jsonify({"error": "Failed to process the data"}), 500
 
     finally:
-        session.remove()  # Ensure the session is removed when done
+        session.close()  # Use close() instead of remove()
 
 @app.route('/api/metrics', methods=['GET'])
 def get_metrics():
-    session = Session()
+    session = Session()  # Creating the scoped session
     try:
         # Query the most recent metrics
         device_metrics = session.query(DeviceMetric).order_by(DeviceMetric.timestamp.desc()).limit(5).all()
@@ -97,7 +97,7 @@ def get_metrics():
         return jsonify({"error": "Failed to fetch the data"}), 500
 
     finally:
-        session.remove()
+        session.close()  # Use close() instead of remove()
 
 @app.route('/')
 def index():
