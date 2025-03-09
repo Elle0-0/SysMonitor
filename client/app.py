@@ -20,7 +20,7 @@ DATABASE_URL = os.getenv('DATABASE_URL')
 engine = create_engine(DATABASE_URL, pool_recycle=280)
 Session = scoped_session(sessionmaker(bind=engine))
 
-@app.before_first_request
+
 def ensure_metric_types():
     session = Session()
     try:
@@ -123,4 +123,5 @@ def index():
 
 if __name__ == '__main__':
     # Start the Flask server
+    ensure_metric_types()
     app.run(debug=True, host='0.0.0.0', port=5000)
