@@ -1,47 +1,108 @@
 import sys
 import os
-from flask import Flask, jsonify, render_template
 import logging
-import requests  # Import the requests module
-
-# Add the parent directory to the system path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
+import json
+from flask import Flask, jsonify, request, render_template
+from sqlalchemy.orm import sessionmaker, scoped_session
+from sqlalchemy import create_engine
 from models import Session, DeviceMetric, ThirdPartyMetric, MetricType, Device
+from dto import MetricsDTO
+from datetime import datetime
 
+# Set up logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+# Flask app setup
 app = Flask(__name__)
 
-@app.route('/api/report', methods=['GET'])
+# Database setup
+DATABASE_URL = os.getenv('DATABASE_URL')
+engine = create_engine(DATABASE_URL, pool_recycle=280)
+Session = scoped_session(sessionmaker(bind=engine))
+
+@app.route('/api/data', methods=['POST'])
 def report():
     session = Session()
     try:
-        # Query the latest CPU and Memory usage metrics
-        cpu_metrics = session.query(DeviceMetric).filter(DeviceMetric.metric_type_id == 1).order_by(DeviceMetric.device_metric_id.desc()).limit(100).all()
-        ram_metrics = session.query(DeviceMetric).filter(DeviceMetric.metric_type_id == 2).order_by(DeviceMetric.device_metric_id.desc()).limit(100).all()
+        # Get the incoming JSON data from the TCP server
+        data = request.get_json()  
+        metrics_dto = MetricsDTO.from_dict(data)
 
-        # Query the latest Air Quality Index for all locations
-        air_quality_metrics = session.query(ThirdPartyMetric).filter(ThirdPartyMetric.name == "Air Quality Index").order_by(ThirdPartyMetric.third_party_metric_id.desc()).all()
+        timestamp = datetime.utcnow()
 
-        air_quality_data = [
-            {
-                "latitude": metric.latitude,
-                "longitude": metric.longitude,
-                "air_quality_index": metric.value
-            }
-            for metric in air_quality_metrics
+        # Insert CPU Usage and Memory Usage into the database
+        cpu_metric = DeviceMetric(
+            device_id=metrics_dto.device_id,
+            metric_type_id=1,  # Assuming 1 is the ID for CPU Usage
+            value=metrics_dto.cpu_usage,
+            timestamp=timestamp
+        )
+        ram_metric = DeviceMetric(
+            device_id=metrics_dto.device_id,
+            metric_type_id=2,  # Assuming 2 is the ID for RAM Usage
+            value=metrics_dto.memory_usage,
+            timestamp=timestamp
+        )
+        session.add(cpu_metric)
+        session.add(ram_metric)
+
+        # Insert Air Quality Index into the database
+        air_quality_metric = ThirdPartyMetric(
+            name="Air Quality Index",
+            value=metrics_dto.air_quality_index,
+            source="OpenWeatherMap",
+            latitude=metrics_dto.latitude,
+            longitude=metrics_dto.longitude,
+            timestamp=timestamp
+        )
+        session.add(air_quality_metric)
+
+        session.commit()
+        return jsonify({"message": "Data successfully received and stored!"}), 200
+
+    except Exception as e:
+        session.rollback()
+        logging.error(f"Error processing the data: {e}")
+        return jsonify({"error": "Failed to process the data"}), 500
+
+    finally:
+        session.remove()  # Ensure the session is removed when done
+
+@app.route('/api/metrics', methods=['GET'])
+def get_metrics():
+    session = Session()
+    try:
+        # Query the most recent metrics
+        device_metrics = session.query(DeviceMetric).order_by(DeviceMetric.timestamp.desc()).limit(5).all()
+        third_party_metrics = session.query(ThirdPartyMetric).order_by(ThirdPartyMetric.timestamp.desc()).limit(5).all()
+
+        # Format the results into a dictionary
+        device_metrics_data = [
+            {"device_id": metric.device_id, "metric_type_id": metric.metric_type_id, "value": metric.value, "timestamp": metric.timestamp}
+            for metric in device_metrics
+        ]
+
+        third_party_metrics_data = [
+            {"name": metric.name, "value": metric.value, "latitude": metric.latitude, "longitude": metric.longitude, "timestamp": metric.timestamp}
+            for metric in third_party_metrics
         ]
 
         return jsonify({
-            "cpu_metrics": [metric.value for metric in cpu_metrics],
-            "ram_metrics": [metric.value for metric in ram_metrics],
-            "air_quality_data": air_quality_data
+            "device_metrics": device_metrics_data,
+            "third_party_metrics": third_party_metrics_data
         })
+
+    except Exception as e:
+        logging.error(f"Error fetching the data: {e}")
+        return jsonify({"error": "Failed to fetch the data"}), 500
+
     finally:
-        session.close()
+        session.remove()
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return render_template('index.html')  # Render the index.html template
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    # Start the Flask server
+    app.run(debug=True, host='0.0.0.0', port=5000)
