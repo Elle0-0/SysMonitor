@@ -5,6 +5,9 @@ from sqlalchemy.orm import relationship, declarative_base, sessionmaker
 from datetime import datetime
 import uuid
 import os
+import pymysql
+pymysql.install_as_MySQLdb()
+
 
 Base = declarative_base()
 
