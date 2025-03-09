@@ -2,10 +2,18 @@ import sqlalchemy
 from sqlalchemy.orm import sessionmaker
 from dto import MetricsDTO
 from datetime import datetime
-from models import Session, DeviceMetric, ThirdPartyMetric
+import logging
 import os
+from models import DeviceMetric, ThirdPartyMetric
 
+# Ensure the DATABASE_URL environment variable is set
 DATABASE_URL = os.getenv('DATABASE_URL')
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL environment variable is not set.")
+
+# Create the engine and session factory
+engine = sqlalchemy.create_engine(DATABASE_URL)
+Session = sessionmaker(bind=engine)
 
 def update_database(metrics_dto):
     session = Session()
@@ -43,6 +51,7 @@ def update_database(metrics_dto):
         session.commit()
     except Exception as e:
         session.rollback()
+        logging.error(f"Error updating database: {e}")
         raise e
     finally:
         session.close()
