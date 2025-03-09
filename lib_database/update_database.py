@@ -1,43 +1,36 @@
-import sqlalchemy
 from sqlalchemy.orm import sessionmaker
-from dto import MetricsDTO
-from datetime import datetime
-import logging
-import os
+from sqlalchemy import create_engine
 from models import DeviceMetric, ThirdPartyMetric
+from datetime import datetime
+import os
 
-# Ensure the DATABASE_URL environment variable is set
 DATABASE_URL = os.getenv('DATABASE_URL')
-if not DATABASE_URL:
-    raise ValueError("DATABASE_URL environment variable is not set.")
-
-# Create the engine and session factory
-engine = sqlalchemy.create_engine(DATABASE_URL)
-Session = sessionmaker(bind=engine)
+engine = create_engine(DATABASE_URL)
 
 def update_database(metrics_dto):
-    session = Session()
+    Session = sessionmaker(bind=engine)  # Create a session maker tied to the engine
+    session = Session()  # Each request gets a fresh session
     try:
-        # Insert a new metric snapshot
+        # Insert metrics into the database
         timestamp = datetime.utcnow()
         
-        # Insert CPU Usage and Memory Usage into the database
+        # Add CPU Usage and Memory Usage data
         cpu_metric = DeviceMetric(
             device_id=metrics_dto.device_id,
-            metric_type_id=1,  # Assuming 1 is the ID for CPU Usage
+            metric_type_id=1,
             value=metrics_dto.cpu_usage,
             timestamp=timestamp
         )
         ram_metric = DeviceMetric(
             device_id=metrics_dto.device_id,
-            metric_type_id=2,  # Assuming 2 is the ID for RAM Usage
+            metric_type_id=2,
             value=metrics_dto.memory_usage,
             timestamp=timestamp
         )
         session.add(cpu_metric)
         session.add(ram_metric)
         
-        # Insert Air Quality Index into the database
+        # Add Air Quality Index data
         air_quality_metric = ThirdPartyMetric(
             name="Air Quality Index",
             value=metrics_dto.air_quality_index,
@@ -48,10 +41,9 @@ def update_database(metrics_dto):
         )
         session.add(air_quality_metric)
         
-        session.commit()
+        session.commit()  # Commit the changes to the database
     except Exception as e:
-        session.rollback()
-        logging.error(f"Error updating database: {e}")
+        session.rollback()  # Rollback the session if there is an error
         raise e
     finally:
-        session.close()
+        session.close()  # Always close the session to release the connection
