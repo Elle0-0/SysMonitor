@@ -130,7 +130,10 @@ dash_app.layout = html.Div([
                         {'label': 'Temperature', 'value': 'temp'},
                         {'label': 'Humidity', 'value': 'humidity'},
                         {'label': 'Wind Speed', 'value': 'wind_speed'},
-                        {'label': 'Air Quality Index', 'value': 'air_quality'}
+                        {'label': 'Pressure', 'value': 'pressure'},
+                        {'label': 'Air Quality Index', 'value': 'air_quality'},
+                        {'label': 'Precipitation', 'value': 'precipitation'},
+                        {'label': 'UV Index', 'value': 'uv_index'}
                     ],
                     value='temp',
                 ),
@@ -144,6 +147,88 @@ dash_app.layout = html.Div([
     ])
 ])
 
+@dash_app.callback(
+    Output('cpu-usage-graph', 'figure'),
+    Output('ram-usage-graph', 'figure'),
+    Input('interval-component', 'n_intervals'),
+    Input('page-input', 'value'),
+    Input('limit-input', 'value')
+)
+def update_device_metrics(n_intervals, page, limit):
+    metrics = fetch_metrics(page, limit)
+    device_metrics = metrics['device_metrics']
+
+    cpu_usage_data = [metric for metric in device_metrics if metric['metric_id'] == 'cpu_usage']
+    ram_usage_data = [metric for metric in device_metrics if metric['metric_id'] == 'ram_usage']
+
+    cpu_usage_fig = go.Figure(data=[
+        go.Scatter(x=[metric['timestamp'] for metric in cpu_usage_data],
+                   y=[metric['value'] for metric in cpu_usage_data],
+                   mode='lines+markers')
+    ])
+    cpu_usage_fig.update_layout(title='CPU Usage Over Time')
+
+    ram_usage_fig = go.Figure(data=[
+        go.Scatter(x=[metric['timestamp'] for metric in ram_usage_data],
+                   y=[metric['value'] for metric in ram_usage_data],
+                   mode='lines+markers')
+    ])
+    ram_usage_fig.update_layout(title='RAM Usage Over Time')
+
+    return cpu_usage_fig, ram_usage_fig
+
+@dash_app.callback(
+    Output('weather-map', 'figure'),
+    Input('interval-component', 'n_intervals'),
+    Input('metric-dropdown', 'value'),
+    Input('page-input-weather', 'value'),
+    Input('limit-input-weather', 'value')
+)
+def update_weather_map(n_intervals, selected_metric, page, limit):
+    metrics = fetch_metrics(page, limit)
+    third_party_metrics = metrics['third_party_metrics']
+
+    metric_map = {
+        'temp': 'Temperature',
+        'humidity': 'Humidity',
+        'wind_speed': 'Wind Speed',
+        'pressure': 'Pressure',
+        'air_quality': 'Air Quality Index',
+        'precipitation': 'Precipitation',
+        'uv_index': 'UV Index'
+    }
+
+    selected_metric_name = metric_map[selected_metric]
+    filtered_metrics = [metric for metric in third_party_metrics if metric['name'].endswith(selected_metric_name)]
+
+    weather_map_fig = go.Figure(data=[
+        go.Scattergeo(
+            lon=[metric['longitude'] for metric in filtered_metrics],
+            lat=[metric['latitude'] for metric in filtered_metrics],
+            text=[f"{metric['name']}: {metric['value']}" for metric in filtered_metrics],
+            mode='markers',
+            marker=dict(
+                size=8,
+                color='blue',
+                symbol='circle'
+            )
+        )
+    ])
+    weather_map_fig.update_layout(
+        title=f'{selected_metric_name} Across Locations',
+        geo=dict(
+            scope='world',
+            projection_type='equirectangular',
+            showland=True,
+            landcolor='rgb(217, 217, 217)',
+            subunitwidth=1,
+            countrywidth=1,
+            subunitcolor='rgb(255, 255, 255)',
+            countrycolor='rgb(255, 255, 255)'
+        )
+    )
+
+    return weather_map_fig
 
 if __name__ == '__main__':
     logging.info("Starting Flask application...")
