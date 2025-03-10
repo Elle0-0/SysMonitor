@@ -88,7 +88,7 @@ def update_database(metrics_dto):
 
                 for metric_name, value in metric_types.items():
                     # Get the ThirdPartyType ID dynamically for each metric
-                    third_party_type = session.query(ThirdPartyType).filter_by(name=metric_name).first()
+                    third_party_type = session.query(ThirdPartyType).filter_by(name=metric_name, latitude=latitude, longitude=longitude).first()
 
                     if not third_party_type:
                         # If the type doesn't exist, create it with latitude and longitude

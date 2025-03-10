@@ -46,11 +46,15 @@ class ThirdPartyType(Base):
     __tablename__ = 'third_party_types'
     
     uuid = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    name = Column(String(255), nullable=False, unique=True)
+    name = Column(String(255), nullable=False)
     latitude = Column(Float, nullable=False)
     longitude = Column(Float, nullable=False)
     
     third_parties = relationship('ThirdParty', back_populates='third_party_type')
+    
+    __table_args__ = (
+        UniqueConstraint('name', 'latitude', 'longitude', name='uq_third_party_type_name_lat_lon'),
+    )
 
 class ThirdParty(Base):
     __tablename__ = 'third_parties'
