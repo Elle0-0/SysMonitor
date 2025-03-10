@@ -1,13 +1,18 @@
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine
-from models import DeviceMetric, Metric, ThirdParty, ThirdPartyType  # Import ThirdParty instead of ThirdPartyMetric
+from models import DeviceMetric, Metric, ThirdParty, ThirdPartyType, Device  # Import Device model
 from datetime import datetime
 import os
 import uuid
+import logging
 
+# Database Configuration
 DATABASE_URL = os.getenv('DATABASE_URL')
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(bind=engine)  # Use a session factory
+
+# Setup logger
+logging.basicConfig(level=logging.INFO)
 
 def update_database(metrics_dto):
     """Inserts device and third-party metrics into the database."""
@@ -15,31 +20,46 @@ def update_database(metrics_dto):
     
     with SessionLocal() as session:
         try:
-            # Get Metric Type IDs dynamically
+            # 1. Check if the Device exists by `device_name`
+            device = session.query(Device).filter_by(name=metrics_dto.device_name).first()
+
+            if not device:
+                # If device does not exist, create and insert it into the 'devices' table
+                device = Device(
+                    uuid=str(uuid.uuid4()),  # Generate a new UUID for the new device
+                    name=metrics_dto.device_name,  # Using the device name passed in the DTO
+                    date_registered=timestamp
+                )
+                session.add(device)
+                logging.info(f"New device added: {metrics_dto.device_name} with ID: {device.uuid}")
+            else:
+                logging.info(f"Device already exists: {metrics_dto.device_name} with ID: {device.uuid}")
+
+            # 2. Get Metric Type IDs dynamically (e.g., "CPU Usage" and "RAM Usage")
             cpu_metric_type = session.query(Metric).filter_by(name="CPU Usage").first()
             ram_metric_type = session.query(Metric).filter_by(name="RAM Usage").first()
 
             if not (cpu_metric_type and ram_metric_type):
                 raise ValueError("One or more device metric types are missing in the database.")
 
-            # Insert Device Metrics
+            # 3. Insert Device Metrics
             cpu_metric = DeviceMetric(
                 uuid=str(uuid.uuid4()),
-                device_id=metrics_dto.device_id,
+                device_id=device.uuid,  # Use the uuid of the found or newly created device
                 metric_id=cpu_metric_type.uuid,  # Corrected field name here
                 value=metrics_dto.cpu_usage,
                 timestamp=timestamp
             )
             ram_metric = DeviceMetric(
                 uuid=str(uuid.uuid4()),
-                device_id=metrics_dto.device_id,
+                device_id=device.uuid,  # Use the uuid of the found or newly created device
                 metric_id=ram_metric_type.uuid,  # Corrected field name here
                 value=metrics_dto.memory_usage,
                 timestamp=timestamp
             )
             session.add_all([cpu_metric, ram_metric])
 
-            # Insert Third-Party Metrics
+            # 4. Insert Third-Party Metrics
             for third_party_data in metrics_dto.weather_and_air_quality_data:
                 # Get ThirdPartyType ID dynamically (e.g., "Air Quality Index", "Temperature", etc.)
                 third_party_type = session.query(ThirdPartyType).filter_by(name=third_party_data['name']).first()
@@ -58,6 +78,9 @@ def update_database(metrics_dto):
                 session.add(third_party_metric)
 
             session.commit()  # Commit changes
+            logging.info("Data successfully updated in the database.")
+            
         except Exception as e:
             session.rollback()
+            logging.error(f"Error during database update: {e}")
             raise e  # Rethrow for logging/debugging
