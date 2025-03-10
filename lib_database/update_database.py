@@ -62,7 +62,7 @@ def update_database(metrics_dto):
             # 4. Prepare Third-Party Metrics in bulk
             third_party_metrics = []
             for third_party_data in metrics_dto.weather_and_air_quality_data:
-                location, lat, lon, temp, humidity, wind_speed, pressure, air_quality_index, precipitation, uv_index = third_party_data
+                location, temp, humidity, wind_speed, pressure, air_quality_index, precipitation, uv_index = third_party_data
                 
                 # 4.1 Get or Create Third-Party Metric Types for Temperature, Humidity, etc.
                 metric_types = {
@@ -83,7 +83,7 @@ def update_database(metrics_dto):
                         # If the type doesn't exist, raise an exception or handle it as needed
                         raise ValueError(f"Third-party type '{metric_name}' is missing in the database.")
                     
-                    # Insert Third-Party Metric for each metric
+                    # Insert Third-Party Metric for each metric, now referencing the third_party_type that contains lat/lon
                     third_party_metrics.append(ThirdParty(
                         uuid=str(uuid.uuid4()),
                         thirdparty_id=third_party_type.uuid,  # This links to the third-party type
