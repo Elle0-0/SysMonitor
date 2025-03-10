@@ -1,6 +1,6 @@
 import os
 import sys
-from flask import Flask, jsonify, render_template
+from flask import Flask, jsonify, render_template, request
 # from dash import Dash, dcc, html  # Commented out Dash import
 # from dash.dependencies import Input, Output  # Commented out Dash import
 # import plotly.graph_objs as go  # Commented out Plotly import
