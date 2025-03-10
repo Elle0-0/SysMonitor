@@ -1,6 +1,6 @@
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine
-from models import DeviceMetric, ThirdPartyMetric, Metric, ThirdPartyType
+from models import DeviceMetric, Metric, ThirdParty, ThirdPartyType  # Import ThirdParty instead of ThirdPartyMetric
 from datetime import datetime
 import os
 import uuid
@@ -29,23 +29,23 @@ def update_database(metrics_dto):
             cpu_metric = DeviceMetric(
                 uuid=str(uuid.uuid4()),
                 device_id=metrics_dto.device_id,
-                metrics_id=cpu_metric_type.uuid,
+                metric_id=cpu_metric_type.uuid,  # Corrected field name here
                 value=metrics_dto.cpu_usage,
                 timestamp=timestamp
             )
             ram_metric = DeviceMetric(
                 uuid=str(uuid.uuid4()),
                 device_id=metrics_dto.device_id,
-                metrics_id=ram_metric_type.uuid,
+                metric_id=ram_metric_type.uuid,  # Corrected field name here
                 value=metrics_dto.memory_usage,
                 timestamp=timestamp
             )
             session.add_all([cpu_metric, ram_metric])
 
             # Insert Third-Party Metric (Air Quality)
-            air_quality_metric = ThirdPartyMetric(
+            air_quality_metric = ThirdParty(  # Changed from ThirdPartyMetric to ThirdParty
                 uuid=str(uuid.uuid4()),
-                thirdparty_id=air_quality_type.uuid,
+                thirdparty_id=air_quality_type.uuid,  # This links to the third party type
                 name="Air Quality Index",
                 value=metrics_dto.air_quality_index,
                 timestamp=timestamp
@@ -56,3 +56,4 @@ def update_database(metrics_dto):
         except Exception as e:
             session.rollback()
             raise e  # Rethrow for logging/debugging
+
