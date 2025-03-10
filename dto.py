@@ -1,6 +1,7 @@
 class MetricsDTO:
-    def __init__(self, device_id, cpu_usage, memory_usage, weather_and_air_quality_data, latitude, longitude):
+    def __init__(self, device_id,device_name, cpu_usage, memory_usage, weather_and_air_quality_data, latitude, longitude):
         self.device_id = device_id
+        self.device_name = device_name
         self.cpu_usage = cpu_usage
         self.memory_usage = memory_usage
         self.weather_and_air_quality_data = weather_and_air_quality_data  # List of third-party data
