@@ -17,7 +17,7 @@ def update_database(metrics_dto):
         try:
             # Get Metric Type IDs dynamically
             cpu_metric_type = session.query(Metric).filter_by(name="CPU Usage").first()
-            ram_metric_type = session.query(Metric).filter_by(name="Memory Usage").first()
+            ram_metric_type = session.query(Metric).filter_by(name="RAM Usage").first()
 
             if not (cpu_metric_type and ram_metric_type):
                 raise ValueError("One or more device metric types are missing in the database.")
