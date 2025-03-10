@@ -125,5 +125,6 @@ def update_database(metrics_dto):
         except Exception as e:
             session.rollback()
             logging.error(f"Error during database update: {e}")
+            logging.error(f"Exception details:", exc_info=True)  # Add this line to log the full exception details
             raise e  # Rethrow for logging/debugging
 
