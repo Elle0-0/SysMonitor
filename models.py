@@ -1,5 +1,5 @@
 from sqlalchemy import (
-    create_engine, Column, Integer, Float, String, ForeignKey, DateTime, UniqueConstraint, CheckConstraint, Index
+    create_engine, Column, Integer, Float, String, ForeignKey, DateTime, UniqueConstraint, CheckConstraint, Index, DECIMAL
 )
 from sqlalchemy.orm import relationship, declarative_base, sessionmaker
 from datetime import datetime
@@ -47,8 +47,8 @@ class ThirdPartyType(Base):
     
     uuid = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String(255), nullable=False)
-    latitude = Column(Float, nullable=False)
-    longitude = Column(Float, nullable=False)
+    latitude = Column(DECIMAL(9, 6), nullable=False)  # Change to DECIMAL
+    longitude = Column(DECIMAL(9, 6), nullable=False)  # Change to DECIMAL
     
     third_parties = relationship('ThirdParty', back_populates='third_party_type')
     
