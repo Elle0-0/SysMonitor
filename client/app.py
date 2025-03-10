@@ -49,12 +49,26 @@ def update_metrics():
         logging.error(f"Error processing request: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
+@retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
+def get_device_metrics(session, offset, limit):
+    return session.query(DeviceMetric).order_by(DeviceMetric.timestamp.desc()).offset(offset).limit(limit).all()
+
+@retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
+def get_third_party_metrics(session, offset, limit):
+    return session.query(ThirdParty).order_by(ThirdParty.timestamp.desc()).offset(offset).limit(offset).all()
+
 @app.route('/api/metrics', methods=['GET'])
 def get_metrics():
     session = Session()
     try:
-        device_metrics = session.query(DeviceMetric).order_by(DeviceMetric.timestamp.desc()).limit(5).all()
-        third_party_metrics = session.query(ThirdParty).order_by(ThirdParty.timestamp.desc()).limit(5).all()
+        # Get pagination parameters from the request
+        page = request.args.get('page', 1, type=int)
+        limit = request.args.get('limit', 10, type=int)
+        offset = (page - 1) * limit
+
+        # Query device metrics with pagination
+        device_metrics = get_device_metrics(session, offset, limit)
+        third_party_metrics = get_third_party_metrics(session, offset, limit)
 
         device_metrics_data = [
             {
@@ -79,7 +93,9 @@ def get_metrics():
 
         return jsonify({
             "device_metrics": device_metrics_data,
-            "third_party_metrics": third_party_metrics_data
+            "third_party_metrics": third_party_metrics_data,
+            "page": page,
+            "limit": limit
         })
     except Exception as e:
         logging.error(f"Error fetching metrics: {str(e)}")
@@ -119,8 +135,9 @@ dash_app.layout = html.Div([
 ])
 
 @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
-def fetch_metrics():
-    response = requests.get('https://michellevaz.pythonanywhere.com/api/metrics', timeout=60)
+def fetch_metrics(page=1, limit=10):
+    params = {'page': page, 'limit': limit}
+    response = requests.get('https://michellevaz.pythonanywhere.com/api/metrics', params=params, timeout=120)  # Increase timeout to 120 seconds
     response.raise_for_status()
     return response.json()
 
@@ -131,7 +148,7 @@ def fetch_metrics():
 )
 def update_device_metrics(n):
     try:
-        data = fetch_metrics()
+        data = fetch_metrics(page=1, limit=10)  # Fetch the first page with a limit of 10
     except requests.RequestException as e:
         logging.error(f"Error fetching device metrics: {e}")
         return {}, {}
@@ -181,7 +198,7 @@ def update_device_metrics(n):
 )
 def update_weather_map(n, selected_metric):
     try:
-        data = fetch_metrics()
+        data = fetch_metrics(page=1, limit=10)  # Fetch the first page with a limit of 10
     except requests.RequestException as e:
         logging.error(f"Error fetching weather metrics: {e}")
         return {}
