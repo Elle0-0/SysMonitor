@@ -9,7 +9,7 @@ import requests
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from dto import MetricsDTO
-from models import Session, DeviceMetric, ThirdPartyMetric
+from models import Session, DeviceMetric, ThirdParty 
 from lib_database.update_database import update_database
 
 # Flask App
@@ -50,14 +50,21 @@ def get_metrics():
     session = Session()
     try:
         device_metrics = session.query(DeviceMetric).order_by(DeviceMetric.timestamp.desc()).limit(5).all()
-        third_party_metrics = session.query(ThirdPartyMetric).order_by(ThirdPartyMetric.timestamp.desc()).limit(5).all()
+        third_party_metrics = session.query(ThirdParty).order_by(ThirdParty.timestamp.desc()).limit(5).all()
 
         device_metrics_data = [
             {"device_id": metric.device_id, "metric_type_id": metric.metric_type_id, "value": metric.value, "timestamp": metric.timestamp}
             for metric in device_metrics
         ]
+        
         third_party_metrics_data = [
-            {"name": metric.name, "value": metric.value, "latitude": metric.latitude, "longitude": metric.longitude, "timestamp": metric.timestamp}
+            {
+                "name": metric.third_party_type.name,  # Access name from the related `ThirdPartyType`
+                "value": metric.value,
+                "latitude": metric.third_party_type.latitude,
+                "longitude": metric.third_party_type.longitude,
+                "timestamp": metric.timestamp
+            }
             for metric in third_party_metrics
         ]
 
@@ -67,6 +74,7 @@ def get_metrics():
         })
     finally:
         session.close()
+
 
 # Commented out Dash layout and callback
 # dash_app.layout = html.Div([
