@@ -100,6 +100,11 @@ def update_database(metrics_dto):
                         )
                         session.add(third_party_type)
                         session.commit()  # Commit to get the UUID for the new third_party_type
+                    else:
+                        # Update existing third_party_type with correct latitude and longitude
+                        third_party_type.latitude = latitude
+                        third_party_type.longitude = longitude
+                        session.commit()
 
                     # Insert Third-Party Metric for each metric, now referencing the third_party_type that contains lat/lon
                     third_party_metrics.append(ThirdParty(
