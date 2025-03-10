@@ -63,24 +63,8 @@
                     <thead>
                         <tr>
                             <th>Device ID</th>
-                            <th>Metric Type ID</th>
+                            <th>Metric ID</th>
                             <th>Value</th>
-                            <th>Timestamp</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
-            </div>
-
-            <div>
-                <h2>Third Party Metrics</h2>
-                <table id="thirdPartyMetricsTable">
-                    <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>Value</th>
-                            <th>Latitude</th>
-                            <th>Longitude</th>
                             <th>Timestamp</th>
                         </tr>
                     </thead>
@@ -95,7 +79,7 @@
 
     <script>
         function fetchMetrics() {
-            fetch('/api/metrics')
+            fetch('https://michellevaz.pythonanywhere.com/api/metrics')
                 .then(response => response.json())
                 .then(data => {
                     const deviceMetricsTable = document.getElementById("deviceMetricsTable").getElementsByTagName('tbody')[0];
@@ -103,20 +87,9 @@
                     data.device_metrics.forEach(metric => {
                         const row = deviceMetricsTable.insertRow();
                         row.insertCell(0).innerText = metric.device_id;
-                        row.insertCell(1).innerText = metric.metric_type_id;
+                        row.insertCell(1).innerText = metric.metric_id;
                         row.insertCell(2).innerText = metric.value;
                         row.insertCell(3).innerText = metric.timestamp;
-                    });
-
-                    const thirdPartyMetricsTable = document.getElementById("thirdPartyMetricsTable").getElementsByTagName('tbody')[0];
-                    thirdPartyMetricsTable.innerHTML = '';
-                    data.third_party_metrics.forEach(metric => {
-                        const row = thirdPartyMetricsTable.insertRow();
-                        row.insertCell(0).innerText = metric.name;
-                        row.insertCell(1).innerText = metric.value;
-                        row.insertCell(2).innerText = metric.latitude;
-                        row.insertCell(3).innerText = metric.longitude;
-                        row.insertCell(4).innerText = metric.timestamp;
                     });
                 })
                 .catch(error => console.error('Error fetching data:', error));
