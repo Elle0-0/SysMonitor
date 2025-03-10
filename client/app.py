@@ -61,39 +61,30 @@ def get_third_party_metrics(session, offset, limit):
 def get_metrics():
     session = Session()
     try:
-        # Get pagination parameters from the request
-        page = request.args.get('page', 1, type=int)
-        limit = request.args.get('limit', 10, type=int)
+        page = request.args.get('page', 1, type=int) or 1
+        limit = request.args.get('limit', 10, type=int) or 10
         offset = (page - 1) * limit
 
-        # Query device metrics with pagination
         device_metrics = session.query(DeviceMetric).order_by(DeviceMetric.timestamp.desc()).offset(offset).limit(limit).all()
         third_party_metrics = session.query(ThirdParty).order_by(ThirdParty.timestamp.desc()).offset(offset).limit(limit).all()
 
-        device_metrics_data = [
-            {
+        if not device_metrics and not third_party_metrics:
+            logging.warning("No metrics data found.")
+            
+        return jsonify({
+            "device_metrics": [{
                 "device_id": metric.device_id,
                 "metric_id": metric.metric_id,
                 "value": metric.value,
                 "timestamp": metric.timestamp
-            }
-            for metric in device_metrics
-        ]
-        
-        third_party_metrics_data = [
-            {
+            } for metric in device_metrics],
+            "third_party_metrics": [{
                 "name": metric.name,
                 "value": metric.value,
                 "latitude": metric.third_party_type.latitude,
                 "longitude": metric.third_party_type.longitude,
                 "timestamp": metric.timestamp
-            }
-            for metric in third_party_metrics
-        ]
-
-        return jsonify({
-            "device_metrics": device_metrics_data,
-            "third_party_metrics": third_party_metrics_data,
+            } for metric in third_party_metrics],
             "page": page,
             "limit": limit
         })
@@ -103,49 +94,10 @@ def get_metrics():
     finally:
         session.close()
 
-# Dash layout and callback
-dash_app.layout = html.Div([
-    dcc.Interval(id='interval-component', interval=15000, n_intervals=0),  # Update interval to 15000 milliseconds (15 seconds)
-    html.H1("SysMonitor Metrics Dashboard"),
-    
-    dcc.Tabs([
-        dcc.Tab(label='Device Metrics', children=[
-            html.Div([
-                dcc.Graph(id='cpu-usage-graph'),
-                dcc.Graph(id='ram-usage-graph'),
-                html.Label("Page:"),
-                dcc.Input(id='page-input', type='number', value=1, min=1),
-                html.Label("Limit:"),
-                dcc.Input(id='limit-input', type='number', value=10, min=1)
-            ])
-        ]),
-        dcc.Tab(label='Third Party Metrics', children=[
-            html.Div([
-                html.Label("Select Metric:"),
-                dcc.Dropdown(
-                    id='metric-dropdown',
-                    options=[
-                        {'label': 'Temperature', 'value': 'temp'},
-                        {'label': 'Humidity', 'value': 'humidity'},
-                        {'label': 'Wind Speed', 'value': 'wind_speed'},
-                        {'label': 'Air Quality Index', 'value': 'air_quality'}
-                    ],
-                    value='temp',
-                ),
-                dcc.Graph(id='weather-map', style={'height': '600px'}),
-                html.Label("Page:"),
-                dcc.Input(id='page-input-weather', type='number', value=1, min=1),
-                html.Label("Limit:"),
-                dcc.Input(id='limit-input-weather', type='number', value=10, min=1)
-            ])
-        ])
-    ])
-])
-
 @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
 def fetch_metrics(page=1, limit=10):
     params = {'page': page, 'limit': limit}
-    response = requests.get('https://michellevaz.pythonanywhere.com/api/metrics', params=params, timeout=120)  # Increase timeout to 120 seconds
+    response = requests.get('https://michellevaz.pythonanywhere.com/api/metrics', params=params, timeout=120)
     response.raise_for_status()
     return response.json()
 
@@ -157,94 +109,30 @@ def fetch_metrics(page=1, limit=10):
      Input('limit-input', 'value')]
 )
 def update_device_metrics(n, page, limit):
+    page = page or 1
+    limit = limit or 10
+    
     try:
-        data = fetch_metrics(page=page, limit=limit)  # Use dynamic page and limit values
+        data = fetch_metrics(page=page, limit=limit)
     except requests.RequestException as e:
         logging.error(f"Error fetching device metrics: {e}")
         return {}, {}
 
-    device_metrics = data['device_metrics']
+    device_metrics = data.get('device_metrics', [])
+    if not device_metrics:
+        logging.warning("No device metrics received.")
+        return {}, {}
+
     cpu_metrics = [metric for metric in device_metrics if metric['metric_id'] == 'a96727f1-e90a-4965-831b-af1fd162cfca']
     ram_metrics = [metric for metric in device_metrics if metric['metric_id'] == '2c368bee-acbc-45b3-91f8-02fa27b22434']
 
-    cpu_figure = {
-        'data': [
-            go.Scatter(
-                x=[metric['timestamp'] for metric in cpu_metrics],
-                y=[metric['value'] for metric in cpu_metrics],
-                mode='lines+markers',
-                name='CPU Usage'
-            )
-        ],
-        'layout': go.Layout(
-            title='CPU Usage Over Time',
-            xaxis={'title': 'Timestamp'},
-            yaxis={'title': 'CPU Usage (%)'}
-        )
+    return {
+        'data': [go.Scatter(x=[m['timestamp'] for m in cpu_metrics], y=[m['value'] for m in cpu_metrics], mode='lines+markers', name='CPU Usage')],
+        'layout': go.Layout(title='CPU Usage Over Time', xaxis={'title': 'Timestamp'}, yaxis={'title': 'CPU Usage (%)'})
+    }, {
+        'data': [go.Scatter(x=[m['timestamp'] for m in ram_metrics], y=[m['value'] for m in ram_metrics], mode='lines+markers', name='RAM Usage')],
+        'layout': go.Layout(title='RAM Usage Over Time', xaxis={'title': 'Timestamp'}, yaxis={'title': 'RAM Usage (%)'})
     }
-
-    ram_figure = {
-        'data': [
-            go.Scatter(
-                x=[metric['timestamp'] for metric in ram_metrics],
-                y=[metric['value'] for metric in ram_metrics],
-                mode='lines+markers',
-                name='RAM Usage'
-            )
-        ],
-        'layout': go.Layout(
-            title='RAM Usage Over Time',
-            xaxis={'title': 'Timestamp'},
-            yaxis={'title': 'RAM Usage (%)'}
-        )
-    }
-
-    return cpu_figure, ram_figure
-
-@dash_app.callback(
-    Output('weather-map', 'figure'),
-    [Input('interval-component', 'n_intervals'),
-     Input('metric-dropdown', 'value'),
-     Input('page-input-weather', 'value'),
-     Input('limit-input-weather', 'value')]
-)
-def update_weather_map(n, selected_metric, page, limit):
-    try:
-        data = fetch_metrics(page=page, limit=limit)  # Use dynamic page and limit values
-    except requests.RequestException as e:
-        logging.error(f"Error fetching weather metrics: {e}")
-        return {}
-
-    third_party_metrics = data['third_party_metrics']
-    metric_values = {
-        'temp': [d['value'] for d in third_party_metrics if d['name'].endswith('Temperature')],
-        'humidity': [d['value'] for d in third_party_metrics if d['name'].endswith('Humidity')],
-        'wind_speed': [d['value'] for d in third_party_metrics if d['name'].endswith('Wind Speed')],
-        'air_quality': [d['value'] for d in third_party_metrics if d['name'].endswith('Air Quality Index')]
-    }
-
-    values_to_plot = metric_values.get(selected_metric, [])
-    latitudes = [d['latitude'] for d in third_party_metrics]
-    longitudes = [d['longitude'] for d in third_party_metrics]
-    locations = [d['name'] for d in third_party_metrics]
-
-    map_figure = {
-        'data': [
-            go.Scattermapbox(
-                lat=latitudes,
-                lon=longitudes,
-                mode='markers',
-                marker=go.scattermapbox.Marker(size=9, color=values_to_plot, colorscale="Viridis", colorbar={'title': selected_metric}),
-                text=locations,
-            )
-        ],
-        'layout': go.Layout(
-            mapbox={'style': "carto-positron", 'center': {'lat': 53.3498, 'lon': -6.2603}, 'zoom': 8},
-            margin={'r': 0, 't': 0, 'b': 0, 'l': 0},
-            title="Real-Time Metrics Map"
-        )
-    }
-    return map_figure
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000, threaded=True)  # Enable threading
+    app.run(debug=True, host='0.0.0.0', port=5000, threaded=True)
