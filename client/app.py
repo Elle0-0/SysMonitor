@@ -55,7 +55,7 @@ def get_device_metrics(session, offset, limit):
 
 @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
 def get_third_party_metrics(session, offset, limit):
-    return session.query(ThirdParty).order_by(ThirdParty.timestamp.desc()).offset(offset).limit(offset).all()
+    return session.query(ThirdParty).order_by(ThirdParty.timestamp.desc()).offset(offset).limit(limit).all()
 
 @app.route('/api/metrics', methods=['GET'])
 def get_metrics():
@@ -67,8 +67,8 @@ def get_metrics():
         offset = (page - 1) * limit
 
         # Query device metrics with pagination
-        device_metrics = get_device_metrics(session, offset, limit)
-        third_party_metrics = get_third_party_metrics(session, offset, limit)
+        device_metrics = session.query(DeviceMetric).order_by(DeviceMetric.timestamp.desc()).offset(offset).limit(limit).all()
+        third_party_metrics = session.query(ThirdParty).order_by(ThirdParty.timestamp.desc()).offset(offset).limit(limit).all()
 
         device_metrics_data = [
             {
@@ -105,14 +105,18 @@ def get_metrics():
 
 # Dash layout and callback
 dash_app.layout = html.Div([
-    dcc.Interval(id='interval-component', interval=5000, n_intervals=0),
+    dcc.Interval(id='interval-component', interval=15000, n_intervals=0),  # Update interval to 15000 milliseconds (15 seconds)
     html.H1("SysMonitor Metrics Dashboard"),
     
     dcc.Tabs([
         dcc.Tab(label='Device Metrics', children=[
             html.Div([
                 dcc.Graph(id='cpu-usage-graph'),
-                dcc.Graph(id='ram-usage-graph')
+                dcc.Graph(id='ram-usage-graph'),
+                html.Label("Page:"),
+                dcc.Input(id='page-input', type='number', value=1, min=1),
+                html.Label("Limit:"),
+                dcc.Input(id='limit-input', type='number', value=10, min=1)
             ])
         ]),
         dcc.Tab(label='Third Party Metrics', children=[
@@ -128,7 +132,11 @@ dash_app.layout = html.Div([
                     ],
                     value='temp',
                 ),
-                dcc.Graph(id='weather-map', style={'height': '600px'})
+                dcc.Graph(id='weather-map', style={'height': '600px'}),
+                html.Label("Page:"),
+                dcc.Input(id='page-input-weather', type='number', value=1, min=1),
+                html.Label("Limit:"),
+                dcc.Input(id='limit-input-weather', type='number', value=10, min=1)
             ])
         ])
     ])
@@ -144,11 +152,13 @@ def fetch_metrics(page=1, limit=10):
 @dash_app.callback(
     [Output('cpu-usage-graph', 'figure'),
      Output('ram-usage-graph', 'figure')],
-    [Input('interval-component', 'n_intervals')]
+    [Input('interval-component', 'n_intervals'),
+     Input('page-input', 'value'),
+     Input('limit-input', 'value')]
 )
-def update_device_metrics(n):
+def update_device_metrics(n, page, limit):
     try:
-        data = fetch_metrics(page=1, limit=10)  # Fetch the first page with a limit of 10
+        data = fetch_metrics(page=page, limit=limit)  # Use dynamic page and limit values
     except requests.RequestException as e:
         logging.error(f"Error fetching device metrics: {e}")
         return {}, {}
@@ -194,11 +204,13 @@ def update_device_metrics(n):
 @dash_app.callback(
     Output('weather-map', 'figure'),
     [Input('interval-component', 'n_intervals'),
-     Input('metric-dropdown', 'value')]
+     Input('metric-dropdown', 'value'),
+     Input('page-input-weather', 'value'),
+     Input('limit-input-weather', 'value')]
 )
-def update_weather_map(n, selected_metric):
+def update_weather_map(n, selected_metric, page, limit):
     try:
-        data = fetch_metrics(page=1, limit=10)  # Fetch the first page with a limit of 10
+        data = fetch_metrics(page=page, limit=limit)  # Use dynamic page and limit values
     except requests.RequestException as e:
         logging.error(f"Error fetching weather metrics: {e}")
         return {}
