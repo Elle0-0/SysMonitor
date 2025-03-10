@@ -5,15 +5,17 @@ from datetime import datetime
 import os
 import uuid
 import logging
+from tenacity import retry, stop_after_attempt, wait_fixed
 
 # Database Configuration
 DATABASE_URL = os.getenv('DATABASE_URL')
-engine = create_engine(DATABASE_URL)
+engine = create_engine(DATABASE_URL, connect_args={"connect_timeout": 60})
 SessionLocal = sessionmaker(bind=engine)  # Use a session factory
 
 # Setup logger
 logging.basicConfig(level=logging.INFO)
 
+@retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
 def update_database(metrics_dto):
     """Inserts device and third-party metrics into the database."""
     timestamp = datetime.utcnow()
