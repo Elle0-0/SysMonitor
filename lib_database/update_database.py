@@ -62,8 +62,15 @@ def update_database(metrics_dto):
             # 4. Prepare Third-Party Metrics in bulk
             third_party_metrics = []
             for third_party_data in metrics_dto.weather_and_air_quality_data:
-                location, temp, humidity, wind_speed, pressure, air_quality_index, precipitation, uv_index = third_party_data
-                
+                location = third_party_data["name"]
+                temp = third_party_data["temperature"]
+                humidity = third_party_data["humidity"]
+                wind_speed = third_party_data["wind_speed"]
+                pressure = third_party_data["pressure"]
+                air_quality_index = third_party_data["air_quality_index"]
+                precipitation = third_party_data["precipitation"]
+                uv_index = third_party_data["uv_index"]
+
                 # 4.1 Get or Create Third-Party Metric Types for Temperature, Humidity, etc.
                 metric_types = {
                     "Temperature": temp,
@@ -103,3 +110,4 @@ def update_database(metrics_dto):
             session.rollback()
             logging.error(f"Error during database update: {e}")
             raise e  # Rethrow for logging/debugging
+
