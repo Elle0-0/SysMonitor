@@ -60,7 +60,7 @@ def get_metrics():
 
         # Prepare the device metrics data
         device_metrics_data = [
-            {"device_id": metric.device_id, "cpu_usage": metric.cpu_usage, "memory_usage": metric.memory_usage,
+            {"device_id": metric.device_id, "cpu_usage": metric.cpu_usage, "ram_usage": metric.ram_usage,
              "air_quality_index": metric.air_quality_index, "latitude": metric.latitude, "longitude": metric.longitude}
             for metric in device_metrics
         ]

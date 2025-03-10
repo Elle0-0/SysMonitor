@@ -17,7 +17,7 @@ logging.basicConfig(level=logging.INFO)
 def update_database(metrics_dto):
     """Inserts device and third-party metrics into the database."""
     timestamp = datetime.utcnow()
-    
+
     with SessionLocal() as session:
         try:
             # 1. Check if the Device exists by `device_name`
@@ -54,32 +54,51 @@ def update_database(metrics_dto):
                 uuid=str(uuid.uuid4()),
                 device_id=device.uuid,  # Use the uuid of the found or newly created device
                 metric_id=ram_metric_type.uuid,  # Corrected field name here
-                value=metrics_dto.memory_usage,
+                value=metrics_dto.ram_usage,
                 timestamp=timestamp
             )
             session.add_all([cpu_metric, ram_metric])
 
-            # 4. Insert Third-Party Metrics
+            # 4. Prepare Third-Party Metrics in bulk
+            third_party_metrics = []
             for third_party_data in metrics_dto.weather_and_air_quality_data:
-                # Get ThirdPartyType ID dynamically (e.g., "Air Quality Index", "Temperature", etc.)
-                third_party_type = session.query(ThirdPartyType).filter_by(name=third_party_data['name']).first()
-
-                if not third_party_type:
-                    raise ValueError(f"Third-party type '{third_party_data['name']}' is missing in the database.")
+                location, lat, lon, temp, humidity, wind_speed, pressure, air_quality_index, precipitation, uv_index = third_party_data
                 
-                # Insert Third-Party Metric
-                third_party_metric = ThirdParty(
-                    uuid=str(uuid.uuid4()),
-                    thirdparty_id=third_party_type.uuid,  # This links to the third-party type
-                    name=third_party_data['name'],  # Name of the specific third-party metric (e.g., "Air Quality Index")
-                    value=third_party_data['value'],
-                    timestamp=timestamp
-                )
-                session.add(third_party_metric)
+                # 4.1 Get or Create Third-Party Metric Types for Temperature, Humidity, etc.
+                metric_types = {
+                    "Temperature": temp,
+                    "Humidity": humidity,
+                    "Wind Speed": wind_speed,
+                    "Pressure": pressure,
+                    "Air Quality Index": air_quality_index,
+                    "Precipitation": precipitation,
+                    "UV Index": uv_index
+                }
 
+                for metric_name, value in metric_types.items():
+                    # Get the ThirdPartyType ID dynamically for each metric
+                    third_party_type = session.query(ThirdPartyType).filter_by(name=metric_name).first()
+
+                    if not third_party_type:
+                        # If the type doesn't exist, raise an exception or handle it as needed
+                        raise ValueError(f"Third-party type '{metric_name}' is missing in the database.")
+                    
+                    # Insert Third-Party Metric for each metric
+                    third_party_metrics.append(ThirdParty(
+                        uuid=str(uuid.uuid4()),
+                        thirdparty_id=third_party_type.uuid,  # This links to the third-party type
+                        name=f"{location} {metric_name}",  # Use location and metric as the name
+                        value=value,
+                        timestamp=timestamp
+                    ))
+
+            # Insert all Third-Party Metrics in bulk
+            session.bulk_save_objects(third_party_metrics)
+
+            # Commit all changes at once
             session.commit()  # Commit changes
             logging.info("Data successfully updated in the database.")
-            
+
         except Exception as e:
             session.rollback()
             logging.error(f"Error during database update: {e}")
