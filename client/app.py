@@ -120,8 +120,13 @@ dash_app.layout = html.Div([
     [Input('interval-component', 'n_intervals')]
 )
 def update_device_metrics(n):
-    response = requests.get('https://michellevaz.pythonanywhere.com/api/metrics')
-    data = response.json()
+    try:
+        response = requests.get('https://michellevaz.pythonanywhere.com/api/metrics', timeout=60)  # Increase timeout to 60 seconds
+        response.raise_for_status()
+        data = response.json()
+    except requests.RequestException as e:
+        logging.error(f"Error fetching device metrics: {e}")
+        return {}, {}
 
     device_metrics = data['device_metrics']
     cpu_metrics = [metric for metric in device_metrics if metric['metric_id'] == 1]
@@ -167,8 +172,13 @@ def update_device_metrics(n):
      Input('metric-dropdown', 'value')]
 )
 def update_weather_map(n, selected_metric):
-    response = requests.get('https://michellevaz.pythonanywhere.com/api/metrics')
-    data = response.json()
+    try:
+        response = requests.get('https://michellevaz.pythonanywhere.com/api/metrics', timeout=60)  # Increase timeout to 60 seconds
+        response.raise_for_status()
+        data = response.json()
+    except requests.RequestException as e:
+        logging.error(f"Error fetching weather metrics: {e}")
+        return {}
 
     third_party_metrics = data['third_party_metrics']
     metric_values = {
