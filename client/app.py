@@ -6,6 +6,7 @@ from dash.dependencies import Input, Output
 import plotly.graph_objs as go
 import logging
 import requests
+from tenacity import retry, stop_after_attempt, wait_fixed
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -114,6 +115,12 @@ dash_app.layout = html.Div([
     ])
 ])
 
+@retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
+def fetch_metrics():
+    response = requests.get('https://michellevaz.pythonanywhere.com/api/metrics', timeout=60)
+    response.raise_for_status()
+    return response.json()
+
 @dash_app.callback(
     [Output('cpu-usage-graph', 'figure'),
      Output('ram-usage-graph', 'figure')],
@@ -121,9 +128,7 @@ dash_app.layout = html.Div([
 )
 def update_device_metrics(n):
     try:
-        response = requests.get('https://michellevaz.pythonanywhere.com/api/metrics', timeout=60)  # Increase timeout to 60 seconds
-        response.raise_for_status()
-        data = response.json()
+        data = fetch_metrics()
     except requests.RequestException as e:
         logging.error(f"Error fetching device metrics: {e}")
         return {}, {}
@@ -173,9 +178,7 @@ def update_device_metrics(n):
 )
 def update_weather_map(n, selected_metric):
     try:
-        response = requests.get('https://michellevaz.pythonanywhere.com/api/metrics', timeout=60)  # Increase timeout to 60 seconds
-        response.raise_for_status()
-        data = response.json()
+        data = fetch_metrics()
     except requests.RequestException as e:
         logging.error(f"Error fetching weather metrics: {e}")
         return {}

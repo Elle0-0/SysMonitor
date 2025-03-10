@@ -70,8 +70,8 @@ def update_database(metrics_dto):
                 air_quality_index = third_party_data["air_quality_index"]
                 precipitation = third_party_data["precipitation"]
                 uv_index = third_party_data["uv_index"]
-                latitude = third_party_data["latitude"]
-                longitude = third_party_data["longitude"]
+                latitude = third_party_data.get("latitude")  # Use get to avoid KeyError
+                longitude = third_party_data.get("longitude")  # Use get to avoid KeyError
 
                 # 4.1 Get or Create Third-Party Metric Types for Temperature, Humidity, etc.
                 metric_types = {
