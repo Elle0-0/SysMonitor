@@ -55,7 +55,7 @@ def get_metrics():
         device_metrics_data = [
             {
                 "device_id": metric.device_id,
-                "metric_type_id": metric.metric_type_id,
+                "metric_id": metric.metric_id,
                 "value": metric.value,
                 "timestamp": metric.timestamp
             }
@@ -120,12 +120,12 @@ dash_app.layout = html.Div([
     [Input('interval-component', 'n_intervals')]
 )
 def update_device_metrics(n):
-    response = requests.get('https://michellevaz.pythonanywhere.com/api/metrics')
+    response = requests.get('/api/metrics')
     data = response.json()
 
     device_metrics = data['device_metrics']
-    cpu_metrics = [metric for metric in device_metrics if metric['metric_type_id'] == 1]
-    ram_metrics = [metric for metric in device_metrics if metric['metric_type_id'] == 2]
+    cpu_metrics = [metric for metric in device_metrics if metric['metric_id'] == 1]
+    ram_metrics = [metric for metric in device_metrics if metric['metric_id'] == 2]
 
     cpu_figure = {
         'data': [
