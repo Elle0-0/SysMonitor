@@ -5,11 +5,9 @@ from datetime import datetime
 import os
 import uuid
 
-
 DATABASE_URL = os.getenv('DATABASE_URL')
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(bind=engine)  # Use a session factory
-
 
 def update_database(metrics_dto):
     """Inserts device and third-party metrics into the database."""
@@ -20,10 +18,9 @@ def update_database(metrics_dto):
             # Get Metric Type IDs dynamically
             cpu_metric_type = session.query(Metric).filter_by(name="CPU Usage").first()
             ram_metric_type = session.query(Metric).filter_by(name="Memory Usage").first()
-            air_quality_type = session.query(ThirdPartyType).filter_by(name="Air Quality Index").first()
 
-            if not (cpu_metric_type and ram_metric_type and air_quality_type):
-                raise ValueError("One or more metric types are missing in the database.")
+            if not (cpu_metric_type and ram_metric_type):
+                raise ValueError("One or more device metric types are missing in the database.")
 
             # Insert Device Metrics
             cpu_metric = DeviceMetric(
@@ -42,18 +39,25 @@ def update_database(metrics_dto):
             )
             session.add_all([cpu_metric, ram_metric])
 
-            # Insert Third-Party Metric (Air Quality)
-            air_quality_metric = ThirdParty(  # Changed from ThirdPartyMetric to ThirdParty
-                uuid=str(uuid.uuid4()),
-                thirdparty_id=air_quality_type.uuid,  # This links to the third party type
-                name="Air Quality Index",
-                value=metrics_dto.air_quality_index,
-                timestamp=timestamp
-            )
-            session.add(air_quality_metric)
+            # Insert Third-Party Metrics
+            for third_party_data in metrics_dto.weather_and_air_quality_data:
+                # Get ThirdPartyType ID dynamically (e.g., "Air Quality Index", "Temperature", etc.)
+                third_party_type = session.query(ThirdPartyType).filter_by(name=third_party_data['name']).first()
+
+                if not third_party_type:
+                    raise ValueError(f"Third-party type '{third_party_data['name']}' is missing in the database.")
+                
+                # Insert Third-Party Metric
+                third_party_metric = ThirdParty(
+                    uuid=str(uuid.uuid4()),
+                    thirdparty_id=third_party_type.uuid,  # This links to the third-party type
+                    name=third_party_data['name'],  # Name of the specific third-party metric (e.g., "Air Quality Index")
+                    value=third_party_data['value'],
+                    timestamp=timestamp
+                )
+                session.add(third_party_metric)
 
             session.commit()  # Commit changes
         except Exception as e:
             session.rollback()
             raise e  # Rethrow for logging/debugging
-

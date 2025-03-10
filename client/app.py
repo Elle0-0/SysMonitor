@@ -26,19 +26,17 @@ def index():
 
 @app.route('/api/update_metrics', methods=['POST'])
 def update_metrics():
-    from flask import request
-    
     logging.info("Received request to update metrics")
     
     try:
         # Get data from the incoming request (e.g., JSON data)
         metrics_data = request.get_json()
         logging.debug(f"Metrics data received: {metrics_data}")
-
+        
         # Create a DTO (data transfer object) to pass to the update_database function
         metrics_dto = MetricsDTO.from_dict(metrics_data)
         logging.debug(f"MetricsDTO created: {metrics_dto}")
-        
+
         # Call the update_database function with the metrics DTO
         update_database(metrics_dto)
         
@@ -50,35 +48,47 @@ def update_metrics():
         logging.error(f"Error processing request: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
-
-
-@app.route('/api/metrics')
+@app.route('/api/metrics', methods=['GET'])
 def get_metrics():
     session = Session()
     try:
+        # Fetch the most recent 5 device metrics from the database
         device_metrics = session.query(DeviceMetric).order_by(DeviceMetric.timestamp.desc()).limit(5).all()
+        
+        # Fetch the most recent 5 third-party metrics from the database
         third_party_metrics = session.query(ThirdParty).order_by(ThirdParty.timestamp.desc()).limit(5).all()
 
+        # Prepare the device metrics data
         device_metrics_data = [
-            {"device_id": metric.device_id, "metric_type_id": metric.metric_type_id, "value": metric.value, "timestamp": metric.timestamp}
+            {"device_id": metric.device_id, "cpu_usage": metric.cpu_usage, "memory_usage": metric.memory_usage,
+             "air_quality_index": metric.air_quality_index, "latitude": metric.latitude, "longitude": metric.longitude}
             for metric in device_metrics
         ]
         
+        # Prepare the third-party metrics data
         third_party_metrics_data = [
             {
-                "name": metric.third_party_type.name,  # Access name from the related `ThirdPartyType`
-                "value": metric.value,
-                "latitude": metric.third_party_type.latitude,
-                "longitude": metric.third_party_type.longitude,
+                "location": metric.name,
+                "temperature": metric.temp,
+                "humidity": metric.humidity,
+                "wind_speed": metric.wind_speed,
+                "pressure": metric.pressure,
+                "air_quality_index": metric.air_quality_index,
+                "precipitation": metric.precipitation,
+                "uv_index": metric.uv_index,
                 "timestamp": metric.timestamp
             }
             for metric in third_party_metrics
         ]
 
+        # Return the data as JSON
         return jsonify({
             "device_metrics": device_metrics_data,
             "third_party_metrics": third_party_metrics_data
         })
+    except Exception as e:
+        logging.error(f"Error fetching metrics: {str(e)}")
+        return jsonify({"error": str(e)}), 500
     finally:
         session.close()
 
