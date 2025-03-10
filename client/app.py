@@ -1,11 +1,16 @@
 import os
-import logging
+import sys
 from flask import Flask, jsonify, render_template
 from dash import Dash, dcc, html
 from dash.dependencies import Input, Output
 import plotly.graph_objs as go
 import requests
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from dto import MetricsDTO
 from models import Session, DeviceMetric, ThirdPartyMetric
+from lib_database.update_database import update_database
 
 # Flask App
 app = Flask(__name__)
@@ -16,6 +21,29 @@ dash_app = Dash(__name__, server=app, url_base_pathname='/dashboard/')
 @app.route('/')
 def index():
     return render_template('index.html')
+
+@app.route('/api/update_metrics', methods=['POST'])
+def update_metrics():
+    from flask import request
+    
+    try:
+        # Get data from the incoming request (e.g., JSON data)
+        metrics_data = request.get_json()
+        
+        # Create a DTO (data transfer object) to pass to the update_database function
+        # You should define how to structure the metrics_dto object based on your incoming data
+        metrics_dto = MetricsDTO.from_dict(metrics_data)  # Convert JSON to a DTO (make sure to implement this part)
+        
+        # Call the update_database function with the metrics DTO
+        update_database(metrics_dto)
+        
+        # Respond with success
+        return jsonify({"message": "Metrics updated successfully!"}), 200
+        
+    except Exception as e:
+        # Handle errors and respond accordingly
+        return jsonify({"error": str(e)}), 500
+
 
 @app.route('/api/metrics')
 def get_metrics():
@@ -40,61 +68,82 @@ def get_metrics():
     finally:
         session.close()
 
+
 dash_app.layout = html.Div([
     dcc.Interval(id='interval-component', interval=5000, n_intervals=0),
     html.H1("SysMonitor Metrics Dashboard"),
     
+    # Dropdown to select metric to display
     html.Div([
-        html.Div([
-            html.H2("CPU Usage"),
-            dcc.Graph(id='cpu-usage-histogram')
-        ], className="six columns"),
-        html.Div([
-            html.H2("Memory Usage"),
-            dcc.Graph(id='memory-usage-histogram')
-        ], className="six columns")
-    ], className="row"),
-    
+        html.Label("Select Metric:"),
+        dcc.Dropdown(
+            id='metric-dropdown',
+            options=[
+                {'label': 'Temperature', 'value': 'temp'},
+                {'label': 'Humidity', 'value': 'humidity'},
+                {'label': 'Wind Speed', 'value': 'wind_speed'},
+                {'label': 'Air Quality Index', 'value': 'air_quality'}
+            ],
+            value='temp',  # Default value
+        ),
+    ], style={'width': '25%', 'padding': '10px'}),
+
+    # Map displaying the selected weather metric
     html.Div([
-        html.H2("Air Quality Index"),
-        dcc.Graph(id='air-quality-map')
-    ])
+        dcc.Graph(id='weather-map', style={'height': '600px'})
+    ]),
 ])
 
 @dash_app.callback(
-    [Output('cpu-usage-histogram', 'figure'),
-     Output('memory-usage-histogram', 'figure'),
-     Output('air-quality-map', 'figure')],
-    [Input('interval-component', 'n_intervals')]
+    Output('weather-map', 'figure'),
+    [Input('interval-component', 'n_intervals'),
+     Input('metric-dropdown', 'value')]
 )
-def update_metrics(n):
+def update_weather_map(n, selected_metric):
+    # Fetch the latest data from the Flask API endpoint
     response = requests.get('http://localhost:5000/api/metrics')
     data = response.json()
 
-    cpu_metrics = [m['value'] for m in data['device_metrics'] if m['metric_type_id'] == 1]
-    ram_metrics = [m['value'] for m in data['device_metrics'] if m['metric_type_id'] == 2]
+    # Process third-party metrics (weather and air quality data)
     air_quality_data = data['third_party_metrics']
 
-    cpu_usage_histogram = {
-        'data': [go.Histogram(x=cpu_metrics)],
-        'layout': go.Layout(title='CPU Usage Distribution')
-    }
-    memory_usage_histogram = {
-        'data': [go.Histogram(x=ram_metrics)],
-        'layout': go.Layout(title='Memory Usage Distribution')
-    }
-    air_quality_map_figure = {
-        'data': [go.Scattermapbox(
-            lat=[d['latitude'] for d in air_quality_data],
-            lon=[d['longitude'] for d in air_quality_data],
-            mode='markers',
-            marker=go.scattermapbox.Marker(size=10),
-            text=[f"Air Quality Index: {d['value']}" for d in air_quality_data]
-        )],
-        'layout': go.Layout(mapbox_style="open-street-map", zoom=6)
+    # Determine values based on selected metric
+    metric_values = {
+        'temp': [d['value'] for d in air_quality_data if d['name'].startswith('Weather Data')],  # Temperature data
+        'humidity': [d['value'] for d in air_quality_data if d['name'].startswith('Weather Data')],  # Humidity data (assumed)
+        'wind_speed': [d['value'] for d in air_quality_data if d['name'].startswith('Weather Data')],  # Wind Speed data (assumed)
+        'air_quality': [d['value'] for d in air_quality_data if d['name'].startswith('Air Quality Index')]  # Air Quality data
     }
 
-    return cpu_usage_histogram, memory_usage_histogram, air_quality_map_figure
+    # Set the values to plot based on selected metric
+    values_to_plot = metric_values.get(selected_metric, [])
+
+    # Get latitude and longitude for all locations
+    latitudes = [d['latitude'] for d in air_quality_data]
+    longitudes = [d['longitude'] for d in air_quality_data]
+    locations = [d['name'] for d in air_quality_data]
+
+    # Create map figure
+    map_figure = {
+        'data': [
+            go.Scattermapbox(
+                lat=latitudes,
+                lon=longitudes,
+                mode='markers',
+                marker=go.scattermapbox.Marker(size=10, color=values_to_plot, colorscale='Viridis', showscale=True),
+                text=[f"{loc}: {val}" for loc, val in zip(locations, values_to_plot)],
+                hoverinfo='text'
+            )
+        ],
+        'layout': go.Layout(
+            title=f'{selected_metric.capitalize()} Distribution',
+            mapbox_style="open-street-map",
+            zoom=6,
+            margin={'l': 0, 'r': 0, 't': 40, 'b': 0}
+        )
+    }
+
+    return map_figure
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
