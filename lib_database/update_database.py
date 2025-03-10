@@ -47,15 +47,15 @@ def update_database(metrics_dto):
             # 3. Insert Device Metrics
             cpu_metric = DeviceMetric(
                 uuid=str(uuid.uuid4()),
-                device_id=device.uuid,
-                metric_id=cpu_metric_type.uuid,
+                device_id=device.uuid,  # Use the uuid of the found or newly created device
+                metric_id=cpu_metric_type.uuid,  # Corrected field name here
                 value=metrics_dto.cpu_usage,
                 timestamp=timestamp
             )
             ram_metric = DeviceMetric(
                 uuid=str(uuid.uuid4()),
-                device_id=device.uuid,
-                metric_id=ram_metric_type.uuid,
+                device_id=device.uuid,  # Use the uuid of the found or newly created device
+                metric_id=ram_metric_type.uuid,  # Corrected field name here
                 value=metrics_dto.ram_usage,
                 timestamp=timestamp
             )
@@ -65,52 +65,48 @@ def update_database(metrics_dto):
             third_party_metrics = []
             for third_party_data in metrics_dto.weather_and_air_quality_data:
                 location = third_party_data["name"]
-                latitude = third_party_data.get("latitude")
-                longitude = third_party_data.get("longitude")
+                temp = third_party_data["temperature"]
+                humidity = third_party_data["humidity"]
+                wind_speed = third_party_data["wind_speed"]
+                pressure = third_party_data["pressure"]
+                air_quality_index = third_party_data["air_quality_index"]
+                precipitation = third_party_data["precipitation"]
+                uv_index = third_party_data["uv_index"]
+                latitude = third_party_data.get("latitude")  # Use get to avoid KeyError
+                longitude = third_party_data.get("longitude")  # Use get to avoid KeyError
 
+                # 4.1 Get Third-Party Metric Types for Temperature, Humidity, etc.
                 metric_types = {
-                    "Temperature": third_party_data["temperature"],
-                    "Humidity": third_party_data["humidity"],
-                    "Wind Speed": third_party_data["wind_speed"],
-                    "Pressure": third_party_data["pressure"],
-                    "Air Quality Index": third_party_data["air_quality_index"],
-                    "Precipitation": third_party_data["precipitation"],
-                    "UV Index": third_party_data["uv_index"]
+                    "Temperature": temp,
+                    "Humidity": humidity,
+                    "Wind Speed": wind_speed,
+                    "Pressure": pressure,
+                    "Air Quality Index": air_quality_index,
+                    "Precipitation": precipitation,
+                    "UV Index": uv_index
                 }
 
                 for metric_name, value in metric_types.items():
-                    if value is None:
-                        continue  # Skip None values
-
-                    # Check if third_party_type already exists
-                    third_party_type = session.query(ThirdPartyType).filter_by(
-                        name=metric_name, latitude=latitude, longitude=longitude
-                    ).first()
+                    # Get the ThirdPartyType ID dynamically for each metric
+                    third_party_type = session.query(ThirdPartyType).filter_by(name=metric_name, latitude=latitude, longitude=longitude).first()
 
                     if not third_party_type:
-                        third_party_type = ThirdPartyType(
-                            uuid=str(uuid.uuid4()),
-                            name=metric_name,
-                            latitude=latitude,
-                            longitude=longitude
-                        )
-                        session.add(third_party_type)
-                        session.commit()
-                        logging.info(f"Inserted new third_party_type: {metric_name} ({latitude}, {longitude})")
-                    else:
-                        logging.info(f"Third-party type already exists: {metric_name} ({latitude}, {longitude})")
+                        raise ValueError(f"Third-party type {metric_name} ({latitude}, {longitude}) not found in the database.")
 
-                    # Insert Third-Party Metric
+                    # Insert Third-Party Metric for each metric, now referencing the third_party_type that contains lat/lon
                     third_party_metrics.append(ThirdParty(
                         uuid=str(uuid.uuid4()),
-                        thirdparty_id=third_party_type.uuid,
-                        name=f"{location} {metric_name}",
+                        thirdparty_id=third_party_type.uuid,  # This links to the third-party type
+                        name=f"{location} {metric_name}",  # Use location and metric as the name
                         value=value,
                         timestamp=timestamp
                     ))
 
+            # Insert all Third-Party Metrics in bulk
             session.bulk_save_objects(third_party_metrics)
-            session.commit()
+
+            # Commit all changes at once
+            session.commit()  # Commit changes
             logging.info("Data successfully updated in the database.")
 
         except Exception as e:
