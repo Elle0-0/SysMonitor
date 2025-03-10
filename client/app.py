@@ -4,7 +4,9 @@ from flask import Flask, jsonify, render_template
 # from dash import Dash, dcc, html  # Commented out Dash import
 # from dash.dependencies import Input, Output  # Commented out Dash import
 # import plotly.graph_objs as go  # Commented out Plotly import
-import requests
+import logging
+logging.basicConfig(level=logging.DEBUG)
+
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -26,23 +28,28 @@ def index():
 def update_metrics():
     from flask import request
     
+    logging.info("Received request to update metrics")
+    
     try:
         # Get data from the incoming request (e.g., JSON data)
         metrics_data = request.get_json()
-        
+        logging.debug(f"Metrics data received: {metrics_data}")
+
         # Create a DTO (data transfer object) to pass to the update_database function
-        # You should define how to structure the metrics_dto object based on your incoming data
-        metrics_dto = MetricsDTO.from_dict(metrics_data)  # Convert JSON to a DTO (make sure to implement this part)
+        metrics_dto = MetricsDTO.from_dict(metrics_data)
+        logging.debug(f"MetricsDTO created: {metrics_dto}")
         
         # Call the update_database function with the metrics DTO
         update_database(metrics_dto)
         
+        logging.info("Metrics successfully updated in the database")
         # Respond with success
         return jsonify({"message": "Metrics updated successfully!"}), 200
         
     except Exception as e:
-        # Handle errors and respond accordingly
+        logging.error(f"Error processing request: {str(e)}")
         return jsonify({"error": str(e)}), 500
+
 
 
 @app.route('/api/metrics')
