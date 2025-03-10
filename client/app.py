@@ -1,6 +1,6 @@
 import os
 import sys
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request, redirect
 from dash import Dash, dcc, html
 from dash.dependencies import Input, Output
 import plotly.graph_objs as go
@@ -24,10 +24,15 @@ app.config['THREADS_PER_PAGE'] = 2
 
 # Dash App
 dash_app = Dash(__name__, server=app, url_base_pathname='/dashboard/')
+dash_app.title = "SysMonitor Dashboard"
 
 @app.route('/')
 def index():
     return render_template('index.html')
+
+@app.route('/dashboard/')
+def dashboard_redirect():
+    return redirect('/dashboard/')
 
 @app.route('/api/update_metrics', methods=['POST'])
 def update_metrics():
@@ -101,38 +106,6 @@ def fetch_metrics(page=1, limit=10):
     response.raise_for_status()
     return response.json()
 
-@dash_app.callback(
-    [Output('cpu-usage-graph', 'figure'),
-     Output('ram-usage-graph', 'figure')],
-    [Input('interval-component', 'n_intervals'),
-     Input('page-input', 'value'),
-     Input('limit-input', 'value')]
-)
-def update_device_metrics(n, page, limit):
-    page = page or 1
-    limit = limit or 10
-    
-    try:
-        data = fetch_metrics(page=page, limit=limit)
-    except requests.RequestException as e:
-        logging.error(f"Error fetching device metrics: {e}")
-        return {}, {}
-
-    device_metrics = data.get('device_metrics', [])
-    if not device_metrics:
-        logging.warning("No device metrics received.")
-        return {}, {}
-
-    cpu_metrics = [metric for metric in device_metrics if metric['metric_id'] == 'a96727f1-e90a-4965-831b-af1fd162cfca']
-    ram_metrics = [metric for metric in device_metrics if metric['metric_id'] == '2c368bee-acbc-45b3-91f8-02fa27b22434']
-
-    return {
-        'data': [go.Scatter(x=[m['timestamp'] for m in cpu_metrics], y=[m['value'] for m in cpu_metrics], mode='lines+markers', name='CPU Usage')],
-        'layout': go.Layout(title='CPU Usage Over Time', xaxis={'title': 'Timestamp'}, yaxis={'title': 'CPU Usage (%)'})
-    }, {
-        'data': [go.Scatter(x=[m['timestamp'] for m in ram_metrics], y=[m['value'] for m in ram_metrics], mode='lines+markers', name='RAM Usage')],
-        'layout': go.Layout(title='RAM Usage Over Time', xaxis={'title': 'Timestamp'}, yaxis={'title': 'RAM Usage (%)'})
-    }
-
 if __name__ == '__main__':
+    logging.info("Starting Flask application...")
     app.run(debug=True, host='0.0.0.0', port=5000, threaded=True)
