@@ -6,6 +6,7 @@ from dash.dependencies import Input, Output
 import plotly.graph_objs as go
 import logging
 import requests
+
 logging.basicConfig(level=logging.DEBUG)
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -29,19 +30,15 @@ def update_metrics():
     logging.info("Received request to update metrics")
     
     try:
-        # Get data from the incoming request (e.g., JSON data)
         metrics_data = request.get_json()
         logging.debug(f"Metrics data received: {metrics_data}")
         
-        # Create a DTO (data transfer object) to pass to the update_database function
         metrics_dto = MetricsDTO.from_dict(metrics_data)
         logging.debug(f"MetricsDTO created: {metrics_dto}")
 
-        # Call the update_database function with the metrics DTO
         update_database(metrics_dto)
         
         logging.info("Metrics successfully updated in the database")
-        # Respond with success
         return jsonify({"message": "Metrics updated successfully!"}), 200
         
     except Exception as e:
@@ -52,39 +49,30 @@ def update_metrics():
 def get_metrics():
     session = Session()
     try:
-        # Fetch the most recent 5 device metrics from the database
         device_metrics = session.query(DeviceMetric).order_by(DeviceMetric.timestamp.desc()).limit(5).all()
-        
-        # Fetch the most recent 5 third-party metrics from the database
         third_party_metrics = session.query(ThirdParty).order_by(ThirdParty.timestamp.desc()).limit(5).all()
 
-        # Prepare the device metrics data
         device_metrics_data = [
             {
-                "metric_id": metric.metric_id, 
-                "cpu_usage": metric.value if metric.metric.name == "cpu_usage" else None,
-                "ram_usage": metric.value if metric.metric.name == "ram_usage" else None
+                "device_id": metric.device_id,
+                "metric_type_id": metric.metric_type_id,
+                "value": metric.value,
+                "timestamp": metric.timestamp
             }
             for metric in device_metrics
         ]
         
-        # Prepare the third-party metrics data
         third_party_metrics_data = [
             {
-                "location": metric.name,
-                "temperature": metric.temp,
-                "humidity": metric.humidity,
-                "wind_speed": metric.wind_speed,
-                "pressure": metric.pressure,
-                "air_quality_index": metric.air_quality_index,
-                "precipitation": metric.precipitation,
-                "uv_index": metric.uv_index,
+                "name": metric.name,
+                "value": metric.value,
+                "latitude": metric.third_party_type.latitude,
+                "longitude": metric.third_party_type.longitude,
                 "timestamp": metric.timestamp
             }
             for metric in third_party_metrics
         ]
 
-        # Return the data as JSON
         return jsonify({
             "device_metrics": device_metrics_data,
             "third_party_metrics": third_party_metrics_data
@@ -95,32 +83,83 @@ def get_metrics():
     finally:
         session.close()
 
-
 # Dash layout and callback
 dash_app.layout = html.Div([
     dcc.Interval(id='interval-component', interval=5000, n_intervals=0),
     html.H1("SysMonitor Metrics Dashboard"),
     
-    # Dropdown to select metric to display
-    html.Div([
-        html.Label("Select Metric:"),
-        dcc.Dropdown(
-            id='metric-dropdown',
-            options=[
-                {'label': 'Temperature', 'value': 'temp'},
-                {'label': 'Humidity', 'value': 'humidity'},
-                {'label': 'Wind Speed', 'value': 'wind_speed'},
-                {'label': 'Air Quality Index', 'value': 'air_quality'}
-            ],
-            value='temp',  # Default value
-        ),
-    ], style={'width': '25%', 'padding': '10px'}),
-
-    # Map displaying the selected weather metric
-    html.Div([
-        dcc.Graph(id='weather-map', style={'height': '600px'})
-    ]),
+    dcc.Tabs([
+        dcc.Tab(label='Device Metrics', children=[
+            html.Div([
+                dcc.Graph(id='cpu-usage-graph'),
+                dcc.Graph(id='ram-usage-graph')
+            ])
+        ]),
+        dcc.Tab(label='Third Party Metrics', children=[
+            html.Div([
+                html.Label("Select Metric:"),
+                dcc.Dropdown(
+                    id='metric-dropdown',
+                    options=[
+                        {'label': 'Temperature', 'value': 'temp'},
+                        {'label': 'Humidity', 'value': 'humidity'},
+                        {'label': 'Wind Speed', 'value': 'wind_speed'},
+                        {'label': 'Air Quality Index', 'value': 'air_quality'}
+                    ],
+                    value='temp',
+                ),
+                dcc.Graph(id='weather-map', style={'height': '600px'})
+            ])
+        ])
+    ])
 ])
+
+@dash_app.callback(
+    [Output('cpu-usage-graph', 'figure'),
+     Output('ram-usage-graph', 'figure')],
+    [Input('interval-component', 'n_intervals')]
+)
+def update_device_metrics(n):
+    response = requests.get('https://michellevaz.pythonanywhere.com/api/metrics')
+    data = response.json()
+
+    device_metrics = data['device_metrics']
+    cpu_metrics = [metric for metric in device_metrics if metric['metric_type_id'] == 1]
+    ram_metrics = [metric for metric in device_metrics if metric['metric_type_id'] == 2]
+
+    cpu_figure = {
+        'data': [
+            go.Scatter(
+                x=[metric['timestamp'] for metric in cpu_metrics],
+                y=[metric['value'] for metric in cpu_metrics],
+                mode='lines+markers',
+                name='CPU Usage'
+            )
+        ],
+        'layout': go.Layout(
+            title='CPU Usage Over Time',
+            xaxis={'title': 'Timestamp'},
+            yaxis={'title': 'CPU Usage (%)'}
+        )
+    }
+
+    ram_figure = {
+        'data': [
+            go.Scatter(
+                x=[metric['timestamp'] for metric in ram_metrics],
+                y=[metric['value'] for metric in ram_metrics],
+                mode='lines+markers',
+                name='RAM Usage'
+            )
+        ],
+        'layout': go.Layout(
+            title='RAM Usage Over Time',
+            xaxis={'title': 'Timestamp'},
+            yaxis={'title': 'RAM Usage (%)'}
+        )
+    }
+
+    return cpu_figure, ram_figure
 
 @dash_app.callback(
     Output('weather-map', 'figure'),
@@ -128,21 +167,21 @@ dash_app.layout = html.Div([
      Input('metric-dropdown', 'value')]
 )
 def update_weather_map(n, selected_metric):
-    response = requests.get('https://michellevaz.pythonanywhere.com/api/metrics')
+    response = requests.get('/api/metrics')
     data = response.json()
 
-    air_quality_data = data['third_party_metrics']
+    third_party_metrics = data['third_party_metrics']
     metric_values = {
-        'temp': [d['value'] for d in air_quality_data], 
-        'humidity': [d['value'] for d in air_quality_data],
-        'wind_speed': [d['value'] for d in air_quality_data],
-        'air_quality': [d['value'] for d in air_quality_data]
+        'temp': [d['value'] for d in third_party_metrics if d['name'].endswith('Temperature')],
+        'humidity': [d['value'] for d in third_party_metrics if d['name'].endswith('Humidity')],
+        'wind_speed': [d['value'] for d in third_party_metrics if d['name'].endswith('Wind Speed')],
+        'air_quality': [d['value'] for d in third_party_metrics if d['name'].endswith('Air Quality Index')]
     }
 
     values_to_plot = metric_values.get(selected_metric, [])
-    latitudes = [d['latitude'] for d in air_quality_data]
-    longitudes = [d['longitude'] for d in air_quality_data]
-    locations = [d['name'] for d in air_quality_data]
+    latitudes = [d['latitude'] for d in third_party_metrics]
+    longitudes = [d['longitude'] for d in third_party_metrics]
+    locations = [d['name'] for d in third_party_metrics]
 
     map_figure = {
         'data': [
