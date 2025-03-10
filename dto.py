@@ -10,6 +10,7 @@ class MetricsDTO:
     def to_dict(self):
         return {
             "device_id": self.device_id,
+            "device_name": self.device_name,
             "cpu_usage": self.cpu_usage,
             "memory_usage": self.memory_usage,
             "weather_and_air_quality_data": self.weather_and_air_quality_data,  # Include third-party data
@@ -21,9 +22,11 @@ class MetricsDTO:
     def from_dict(data):
         return MetricsDTO(
             device_id=data.get("device_id"),
+            device_name=data.get("device_name"),
             cpu_usage=data.get("cpu_usage"),
             memory_usage=data.get("memory_usage"),
             weather_and_air_quality_data=data.get("weather_and_air_quality_data", []),  # Default to empty list
             latitude=data.get("latitude"),
             longitude=data.get("longitude")
         )
+
