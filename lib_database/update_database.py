@@ -70,6 +70,8 @@ def update_database(metrics_dto):
                 air_quality_index = third_party_data["air_quality_index"]
                 precipitation = third_party_data["precipitation"]
                 uv_index = third_party_data["uv_index"]
+                latitude = third_party_data["latitude"]
+                longitude = third_party_data["longitude"]
 
                 # 4.1 Get or Create Third-Party Metric Types for Temperature, Humidity, etc.
                 metric_types = {
@@ -87,9 +89,16 @@ def update_database(metrics_dto):
                     third_party_type = session.query(ThirdPartyType).filter_by(name=metric_name).first()
 
                     if not third_party_type:
-                        # If the type doesn't exist, raise an exception or handle it as needed
-                        raise ValueError(f"Third-party type '{metric_name}' is missing in the database.")
-                    
+                        # If the type doesn't exist, create it with latitude and longitude
+                        third_party_type = ThirdPartyType(
+                            uuid=str(uuid.uuid4()),
+                            name=metric_name,
+                            latitude=latitude,
+                            longitude=longitude
+                        )
+                        session.add(third_party_type)
+                        session.commit()  # Commit to get the UUID for the new third_party_type
+
                     # Insert Third-Party Metric for each metric, now referencing the third_party_type that contains lat/lon
                     third_party_metrics.append(ThirdParty(
                         uuid=str(uuid.uuid4()),

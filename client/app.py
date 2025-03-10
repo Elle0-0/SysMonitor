@@ -120,7 +120,7 @@ dash_app.layout = html.Div([
     [Input('interval-component', 'n_intervals')]
 )
 def update_device_metrics(n):
-    response = requests.get('/api/metrics')
+    response = requests.get('https://michellevaz.pythonanywhere.com/api/metrics')
     data = response.json()
 
     device_metrics = data['device_metrics']
@@ -167,7 +167,7 @@ def update_device_metrics(n):
      Input('metric-dropdown', 'value')]
 )
 def update_weather_map(n, selected_metric):
-    response = requests.get('/api/metrics')
+    response = requests.get('https://michellevaz.pythonanywhere.com/api/metrics')
     data = response.json()
 
     third_party_metrics = data['third_party_metrics']
