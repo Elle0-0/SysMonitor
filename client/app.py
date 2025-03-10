@@ -164,8 +164,8 @@ def update_device_metrics(n, page, limit):
         return {}, {}
 
     device_metrics = data['device_metrics']
-    cpu_metrics = [metric for metric in device_metrics if metric['metric_id'] == 1]
-    ram_metrics = [metric for metric in device_metrics if metric['metric_id'] == 2]
+    cpu_metrics = [metric for metric in device_metrics if metric['metric_id'] == 'a96727f1-e90a-4965-831b-af1fd162cfca']
+    ram_metrics = [metric for metric in device_metrics if metric['metric_id'] == '2c368bee-acbc-45b3-91f8-02fa27b22434']
 
     cpu_figure = {
         'data': [
