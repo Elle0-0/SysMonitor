@@ -1,12 +1,15 @@
 import os
 import sys
 from flask import Flask, jsonify, render_template, request, redirect
+from flask_caching import Cache
 from dash import Dash, dcc, html
 from dash.dependencies import Input, Output
 import plotly.graph_objs as go
 import logging
 import requests
 from tenacity import retry, stop_after_attempt, wait_fixed
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -22,9 +25,17 @@ app = Flask(__name__)
 # Enable threading
 app.config['THREADS_PER_PAGE'] = 2
 
+# Flask-Caching
+cache = Cache(app, config={'CACHE_TYPE': 'simple'})
+
 # Dash App
 dash_app = Dash(__name__, server=app, url_base_pathname='/dashboard/')
 dash_app.title = "SysMonitor Dashboard"
+
+# Database Configuration
+DATABASE_URL = os.getenv('DATABASE_URL')
+engine = create_engine(DATABASE_URL, pool_pre_ping=True, pool_recycle=3600)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 @app.route('/')
 def index():
@@ -64,7 +75,7 @@ def get_third_party_metrics(session, offset, limit):
 
 @app.route('/api/metrics', methods=['GET'])
 def get_metrics():
-    session = Session()
+    session = SessionLocal()
     try:
         page = request.args.get('page', 1, type=int) or 1
         limit = request.args.get('limit', 10, type=int) or 10
@@ -100,6 +111,7 @@ def get_metrics():
         session.close()
 
 @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
+@cache.memoize(timeout=60)  # Cache the data for 60 seconds
 def fetch_metrics(page=1, limit=10):
     params = {'page': page, 'limit': limit}
     response = requests.get('https://michellevaz.pythonanywhere.com/api/metrics', params=params, timeout=120)
@@ -107,7 +119,7 @@ def fetch_metrics(page=1, limit=10):
     return response.json()
 
 dash_app.layout = html.Div([
-    dcc.Interval(id='interval-component', interval=15000, n_intervals=0),
+    dcc.Interval(id='interval-component', interval=60000, n_intervals=0),  # Update interval to 60 seconds
     html.H1("SysMonitor Metrics Dashboard"),
     
     dcc.Tabs([
