@@ -106,6 +106,45 @@ def fetch_metrics(page=1, limit=10):
     response.raise_for_status()
     return response.json()
 
+dash_app.layout = html.Div([
+    dcc.Interval(id='interval-component', interval=15000, n_intervals=0),
+    html.H1("SysMonitor Metrics Dashboard"),
+    
+    dcc.Tabs([
+        dcc.Tab(label='Device Metrics', children=[
+            html.Div([
+                dcc.Graph(id='cpu-usage-graph'),
+                dcc.Graph(id='ram-usage-graph'),
+                html.Label("Page:"),
+                dcc.Input(id='page-input', type='number', value=1, min=1),
+                html.Label("Limit:"),
+                dcc.Input(id='limit-input', type='number', value=10, min=1)
+            ])
+        ]),
+        dcc.Tab(label='Third Party Metrics', children=[
+            html.Div([
+                html.Label("Select Metric:"),
+                dcc.Dropdown(
+                    id='metric-dropdown',
+                    options=[
+                        {'label': 'Temperature', 'value': 'temp'},
+                        {'label': 'Humidity', 'value': 'humidity'},
+                        {'label': 'Wind Speed', 'value': 'wind_speed'},
+                        {'label': 'Air Quality Index', 'value': 'air_quality'}
+                    ],
+                    value='temp',
+                ),
+                dcc.Graph(id='weather-map', style={'height': '600px'}),
+                html.Label("Page:"),
+                dcc.Input(id='page-input-weather', type='number', value=1, min=1),
+                html.Label("Limit:"),
+                dcc.Input(id='limit-input-weather', type='number', value=10, min=1)
+            ])
+        ])
+    ])
+])
+
+
 if __name__ == '__main__':
     logging.info("Starting Flask application...")
     app.run(debug=True, host='0.0.0.0', port=5000, threaded=True)
