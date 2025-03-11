@@ -118,9 +118,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 labels: ['CPU Usage', '']
             },
             options: {
-                circumference: Math.PI,
-                rotation: Math.PI,
-                cutout: '50%',
+                circumference: 180,  // Use degrees instead of Math.PI
+                rotation: 270,       // Start from the top instead of a slanted position
+                cutout: '50%',       // Ensures the hollow effect (v3+)
                 plugins: {
                     tooltip: { enabled: true },
                     datalabels: {
@@ -137,6 +137,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
         });
+        
     
         // Create RAM Usage Gauge
         ramUsageGauge = new Chart(document.getElementById('ramUsageGauge'), {
@@ -149,8 +150,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 labels: ['RAM Usage', '']
             },
             options: {
-                circumference: Math.PI,
-                rotation: Math.PI,
+                circumference: 180,  // Use degrees instead of Math.PI
+                rotation: 270,       // Start from the top instead of a slanted position
                 cutout: '50%',
                 plugins: {
                     tooltip: { enabled: true },
