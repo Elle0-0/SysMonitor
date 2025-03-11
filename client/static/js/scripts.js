@@ -1,8 +1,6 @@
 document.addEventListener('DOMContentLoaded', function() {
     console.log("DOM fully loaded and parsed.");
     let cpuUsageGauge, ramUsageGauge, cpuUsageHistogram, ramUsageHistogram;
-    let weatherDataCache = JSON.parse(document.getElementById('weatherData').textContent);
-    let deviceMetricsCache = JSON.parse(document.getElementById('deviceMetrics').textContent);
     let map;
     let markers = [];
     const lastUpdatedTime = "{{ last_updated_time }}";
@@ -144,10 +142,12 @@ document.addEventListener('DOMContentLoaded', function() {
         fetchMetrics(currentPage, limit);
     };
 
-    window.addEventListener('scroll', () => {
-        if (window.innerHeight + window.scrollY >= document.body.offsetHeight) {
-            fetchMetrics(currentPage, limit);
-        }
+    document.getElementById('weatherTypeDropdown').addEventListener('change', async function (event) {
+        const weatherType = event.target.value;
+        const response = await fetch(`/api/weather_data?type=${weatherType}`);
+        const data = await response.json();
+
+        updateMap(data.weather_data);  // Function to update your map with new data
     });
 
     // Initial fetch

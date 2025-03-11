@@ -21,7 +21,7 @@ class Application:
         self.config = self.load_config()
         self.logger = logging.getLogger(__name__)
         self.flask_app = Flask(__name__)
-        self.cache = Cache(self.flask_app, config={'CACHE_TYPE': 'simple'})
+        self.cache = Cache(self.flask_app, config={'CACHE_TYPE': 'simple', 'CACHE_DEFAULT_TIMEOUT': 600})  # 600 seconds = 10 minutes
         self.setup_routes()
         self.engine = create_engine(os.getenv('DATABASE_URL'))
         self.SessionLocal = sessionmaker(bind=self.engine)
@@ -98,33 +98,23 @@ class Application:
 
         @self.flask_app.route('/api/weather_data', methods=['GET'])
         def get_weather_data():
-            session = self.SessionLocal()
+            weather_type = request.args.get('type', 'UV Index')  # Default to UV Index
+            counties = ["Dublin", "Cork", "Galway", "Limerick", "Waterford", "Belfast", "Kilkenny", "Sligo", "Wexford", "Drogheda"]  # Replace with your actual county names
+
             try:
-                page = request.args.get('page', 1, type=int) or 1
-                limit = request.args.get('limit', 10, type=int) or 10
-                offset = (page - 1) * limit
-
-                third_party_metrics = session.query(ThirdParty).order_by(ThirdParty.timestamp.desc()).offset(offset).limit(limit).all()
-
-                if not third_party_metrics:
-                    logging.warning("No weather data found.")
-                    
+                weather_data = self.fetch_cached_weather_data(weather_type, counties)
                 return jsonify({
-                    "third_party_metrics": [{
-                        "name": metric.name,
-                        "value": metric.value,
-                        "latitude": metric.third_party_type.latitude,
-                        "longitude": metric.third_party_type.longitude,
-                        "timestamp": metric.timestamp
-                    } for metric in third_party_metrics],
-                    "page": page,
-                    "limit": limit
+                    "weather_data": [{
+                        "name": row.name,
+                        "value": row.value,
+                        "latitude": float(row.latitude),
+                        "longitude": float(row.longitude),
+                        "timestamp": row.timestamp.isoformat()
+                    } for row in weather_data]
                 })
             except Exception as e:
                 logging.error(f"Error fetching weather data: {str(e)}")
-                return jsonify({"error": str(e)}), 500
-            finally:
-                session.close()
+                return jsonify({"error": "Failed to fetch weather data"}), 500
 
         @self.flask_app.route('/update_device_metrics')
         def update_device_metrics():
@@ -171,6 +161,25 @@ class Application:
         except Exception as e:
             logging.error(f"Error fetching device metrics: {str(e)}")
             self.device_metrics_cache = []
+
+    def fetch_cached_weather_data(self, weather_type, counties):
+        return self.cache.memoize(timeout=600)(self.fetch_weather_data_from_db)(weather_type, counties)
+
+    def fetch_weather_data_from_db(self, weather_type, counties):
+        session = self.SessionLocal()
+        try:
+            return session.query(
+                ThirdParty.name,
+                ThirdParty.value,
+                ThirdParty.timestamp,
+                ThirdPartyType.latitude,
+                ThirdPartyType.longitude
+            ).join(ThirdPartyType).filter(
+                ThirdParty.name == weather_type,
+                ThirdPartyType.name.in_(counties)
+            ).order_by(ThirdParty.timestamp.desc()).all()
+        finally:
+            session.close()
 
     def run(self) -> int:
         """Main application logic."""
