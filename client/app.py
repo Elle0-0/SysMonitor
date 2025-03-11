@@ -86,8 +86,8 @@ class Application:
                     
                 return jsonify({
                     "device_metrics": [{
-                        "device_id": metric.device_id,
-                        "metric_id": metric.metric_id,
+                        "device_name": metric.device.name,
+                        "metric_name": metric.metric.name,
                         "value": metric.value,
                         "timestamp": metric.timestamp
                     } for metric in device_metrics],
