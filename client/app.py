@@ -111,7 +111,7 @@ def fetch_metrics(page=1, limit=10):
     return response.json()
 
 # Dash App
-dash_app = Dash(__name__, server=app, url_base_pathname='/dashboard/')
+dash_app = Dash(__name__, server=app, url_base_pathname='/')
 dash_app.title = "SysMonitor Dashboard"
 
 dash_app.layout = html.Div([
