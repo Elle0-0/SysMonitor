@@ -30,7 +30,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (tabName in weatherDataCache) {
             updateMap(tabName);
         } else if (tabName === 'CPUUsage' || tabName === 'RAMUsage') {
-            updateGauges(tabName);
+            updateGaugesAndHistograms();
         }
     }
 
@@ -64,25 +64,27 @@ document.addEventListener('DOMContentLoaded', function() {
         markers = [];
     }
 
-    function updateGauges(metricType) {
-        console.log(`Updating gauges for metric type: ${metricType}`);
-        const cpuUsageData = deviceMetricsCache.filter(metric => metric.metric_id === 'a96727f1-e90a-4965-831b-af1fd162cfca');
-        const ramUsageData = deviceMetricsCache.filter(metric => metric.metric_id === '2c368bee-acbc-45b3-91f8-02fa27b22434');
+    function updateGaugesAndHistograms(metrics) {
+        console.log(`Updating gauges and histograms.`);
+        const cpuUsageData = metrics.filter(metric => metric.metric_name === 'CPU Usage');
+        const ramUsageData = metrics.filter(metric => metric.metric_name === 'RAM Usage');
 
         if (cpuUsageGauge) cpuUsageGauge.destroy();
         if (ramUsageGauge) ramUsageGauge.destroy();
+        if (cpuUsageHistogram) cpuUsageHistogram.destroy();
+        if (ramUsageHistogram) ramUsageHistogram.destroy();
 
-        const gaugeData = metricType === 'CPUUsage' ? cpuUsageData : ramUsageData;
-        const gaugeLabel = metricType === 'CPUUsage' ? 'CPU Usage' : 'RAM Usage';
+        const gaugeData = cpuUsageData.length ? cpuUsageData[cpuUsageData.length - 1].value : 0;
+        const ramData = ramUsageData.length ? ramUsageData[ramUsageData.length - 1].value : 0;
 
-        const gauge = new Chart(document.getElementById('usageGauge'), {
+        cpuUsageGauge = new Chart(document.getElementById('cpuUsageGauge'), {
             type: 'doughnut',
             data: {
                 datasets: [{
-                    data: [gaugeData.length ? gaugeData[gaugeData.length - 1].value : 0, 100 - (gaugeData.length ? gaugeData[gaugeData.length - 1].value : 0)],
+                    data: [gaugeData, 100 - gaugeData],
                     backgroundColor: ['#4CAF50', '#ddd']
                 }],
-                labels: [gaugeLabel, '']
+                labels: ['CPU Usage', '']
             },
             options: {
                 circumference: Math.PI,
@@ -106,11 +108,88 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
-        if (metricType === 'CPUUsage') {
-            cpuUsageGauge = gauge;
-        } else {
-            ramUsageGauge = gauge;
-        }
+        ramUsageGauge = new Chart(document.getElementById('ramUsageGauge'), {
+            type: 'doughnut',
+            data: {
+                datasets: [{
+                    data: [ramData, 100 - ramData],
+                    backgroundColor: ['#4CAF50', '#ddd']
+                }],
+                labels: ['RAM Usage', '']
+            },
+            options: {
+                circumference: Math.PI,
+                rotation: Math.PI,
+                cutout: '50%',
+                plugins: {
+                    tooltip: { enabled: false },
+                    hover: { mode: null },
+                    datalabels: {
+                        display: true,
+                        formatter: (value, context) => {
+                            return context.chart.data.labels[context.dataIndex] + ': ' + value + '%';
+                        },
+                        color: '#000',
+                        font: {
+                            weight: 'bold',
+                            size: 16
+                        }
+                    }
+                }
+            }
+        });
+
+        cpuUsageHistogram = new Chart(document.getElementById('cpuUsageHistogram'), {
+            type: 'bar',
+            data: {
+                labels: cpuUsageData.map(metric => metric.timestamp),
+                datasets: [{
+                    label: 'CPU Usage',
+                    data: cpuUsageData.map(metric => metric.value),
+                    backgroundColor: '#4CAF50'
+                }]
+            },
+            options: {
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: {
+                            unit: 'minute'
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        max: 100
+                    }
+                }
+            }
+        });
+
+        ramUsageHistogram = new Chart(document.getElementById('ramUsageHistogram'), {
+            type: 'bar',
+            data: {
+                labels: ramUsageData.map(metric => metric.timestamp),
+                datasets: [{
+                    label: 'RAM Usage',
+                    data: ramUsageData.map(metric => metric.value),
+                    backgroundColor: '#4CAF50'
+                }]
+            },
+            options: {
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: {
+                            unit: 'minute'
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        max: 100
+                    }
+                }
+            }
+        });
     }
 
     function fetchMetrics(page, limit) {
@@ -118,6 +197,7 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => response.json())
             .then(data => {
                 updateDeviceMetricsTable(data.device_metrics);
+                updateGaugesAndHistograms(data.device_metrics);
                 document.getElementById('currentPage').innerText = page;
             })
             .catch(error => console.error('Error fetching data:', error));

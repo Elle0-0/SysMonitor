@@ -63,11 +63,12 @@
         </div>
 
         <h2>Usage Gauges</h2>
-        <div id="usageGauge"></div>
+        <canvas id="cpuUsageGauge"></canvas>
+        <canvas id="ramUsageGauge"></canvas>
 
         <h2>Histograms</h2>
-        <div id="cpuUsageHistogram"></div>
-        <div id="ramUsageHistogram"></div>
+        <canvas id="cpuUsageHistogram"></canvas>
+        <canvas id="ramUsageHistogram"></canvas>
     </div>
 
     <script src="{{ url_for('static', filename='js/scripts.js') }}"></script>
