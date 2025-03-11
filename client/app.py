@@ -28,10 +28,6 @@ app.config['THREADS_PER_PAGE'] = 2
 # Flask-Caching
 cache = Cache(app, config={'CACHE_TYPE': 'simple'})
 
-# Dash App
-dash_app = Dash(__name__, server=app, url_base_pathname='/dashboard/')
-dash_app.title = "SysMonitor Dashboard"
-
 # Database Configuration
 DATABASE_URL = os.getenv('DATABASE_URL')
 engine = create_engine(DATABASE_URL, pool_pre_ping=True, pool_recycle=3600)
@@ -82,7 +78,7 @@ def get_metrics():
         offset = (page - 1) * limit
 
         device_metrics = session.query(DeviceMetric).order_by(DeviceMetric.timestamp.desc()).offset(offset).limit(limit).all()
-        third_party_metrics = session.query(ThirdParty).order_by(ThirdParty.timestamp.desc()).offset(offset).limit(limit).all()
+        third_party_metrics = session.query(ThirdParty).order_by(ThirdParty.timestamp.desc()).offset(offset).limit(offset).all()
 
         if not device_metrics and not third_party_metrics:
             logging.warning("No metrics data found.")
@@ -117,6 +113,10 @@ def fetch_metrics(page=1, limit=10):
     response = requests.get('https://michellevaz.pythonanywhere.com/api/metrics', params=params, timeout=120)
     response.raise_for_status()
     return response.json()
+
+# Dash App
+dash_app = Dash(__name__, server=app, url_base_pathname='/dashboard/')
+dash_app.title = "SysMonitor Dashboard"
 
 dash_app.layout = html.Div([
     dcc.Interval(id='interval-component', interval=60000, n_intervals=0),  # Update interval to 60 seconds
