@@ -15,7 +15,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from lib_utils.blocktimer import BlockTimer
 from lib_database.update_database import update_database
 from dto import MetricsDTO
-from models import DeviceMetric, ThirdParty, Metric, Device
+from models import DeviceMetric, ThirdParty, Metric, Device, ThirdPartyType
 
 class Application:
     def __init__(self):
@@ -61,16 +61,32 @@ class Application:
         def get_metrics():
             session = self.SessionLocal()
             try:
-                page = request.args.get('page', 1, type=int)
-                limit = request.args.get('limit', 10, type=int)
+                page = request.args.get('page', 1, type=int) or 1
+                limit = request.args.get('limit', 10, type=int) or 10
                 offset = (page - 1) * limit
 
-                device_metrics = session.query(DeviceMetric).offset(offset).limit(limit).all()
-                third_party_metrics = session.query(ThirdParty).offset(offset).limit(limit).all()
+                device_metrics = session.query(DeviceMetric).order_by(DeviceMetric.timestamp.desc()).offset(offset).limit(limit).all()
+                third_party_metrics = session.query(ThirdParty).order_by(ThirdParty.timestamp.desc()).offset(offset).limit(limit).all()
 
+                if not device_metrics and not third_party_metrics:
+                    logging.warning("No metrics data found.")
+                    
                 return jsonify({
-                    "device_metrics": [metric.to_dict() for metric in device_metrics],
-                    "third_party_metrics": [metric.to_dict() for metric in third_party_metrics]
+                    "device_metrics": [{
+                        "device_id": metric.device_id,
+                        "metric_id": metric.metric_id,
+                        "value": metric.value,
+                        "timestamp": metric.timestamp
+                    } for metric in device_metrics],
+                    "third_party_metrics": [{
+                        "name": metric.name,
+                        "value": metric.value,
+                        "latitude": metric.third_party_type.latitude,
+                        "longitude": metric.third_party_type.longitude,
+                        "timestamp": metric.timestamp
+                    } for metric in third_party_metrics],
+                    "page": page,
+                    "limit": limit
                 })
             except Exception as e:
                 logging.error(f"Error fetching metrics: {str(e)}")

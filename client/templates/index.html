@@ -86,13 +86,17 @@
                 .then(data => {
                     const deviceMetricsTable = document.getElementById("deviceMetricsTable").getElementsByTagName('tbody')[0];
                     deviceMetricsTable.innerHTML = '';
-                    data.device_metrics.forEach(metric => {
-                        const row = deviceMetricsTable.insertRow();
-                        row.insertCell(0).innerText = metric.device_id;
-                        row.insertCell(1).innerText = metric.metric_id;
-                        row.insertCell(2).innerText = metric.value;
-                        row.insertCell(3).innerText = metric.timestamp;
-                    });
+                    if (data.device_metrics) {
+                        data.device_metrics.forEach(metric => {
+                            const row = deviceMetricsTable.insertRow();
+                            row.insertCell(0).innerText = metric.device_id;
+                            row.insertCell(1).innerText = metric.metric_id;
+                            row.insertCell(2).innerText = metric.value;
+                            row.insertCell(3).innerText = metric.timestamp;
+                        });
+                    } else {
+                        console.error('No device metrics found in the response.');
+                    }
                 })
                 .catch(error => console.error('Error fetching data:', error));
         }
