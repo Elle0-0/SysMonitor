@@ -81,7 +81,7 @@
 
     <script>
         function fetchMetrics() {
-            fetch('api/metrics')
+            fetch('https://michellevaz.pythonanywhere.com/api/metrics')
                 .then(response => response.json())
                 .then(data => {
                     const deviceMetricsTable = document.getElementById("deviceMetricsTable").getElementsByTagName('tbody')[0];
