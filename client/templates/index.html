@@ -32,8 +32,11 @@
 
         <h2>Live Dashboard & Map</h2>
         <div id="dash-container">
-            <canvas id="cpuUsageGauge"></canvas>
-            <canvas id="ramUsageGauge"></canvas>
+            <div class="tabs">
+                <button class="tablink" onclick="openTab(event, 'CPUUsage')">CPU Usage</button>
+                <button class="tablink" onclick="openTab(event, 'RAMUsage')">RAM Usage</button>
+            </div>
+            <canvas id="usageGauge"></canvas>
             <canvas id="cpuUsageHistogram"></canvas>
             <canvas id="ramUsageHistogram"></canvas>
             <div id="map" style="width: 100%; height: 500px;"></div>

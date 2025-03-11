@@ -59,3 +59,11 @@ td {
     padding: 20px;
     border-top: none;
 }
+#usageGauge {
+    max-width: 400px;
+    margin: auto;
+}
+#cpuUsageHistogram, #ramUsageHistogram {
+    max-width: 400px;
+    margin: auto;
+}
