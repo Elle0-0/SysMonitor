@@ -31,10 +31,25 @@ td {
     padding: 8px;
     text-align: center;
 }
+#usageGauge, #cpuUsageGauge, #ramUsageGauge {
+    width: 300px;
+    height: 150px; /* Ensure proper gauge proportions */
+    max-width: 100%;
+    margin: auto;
+}
+
+#cpuUsageHistogram, #ramUsageHistogram {
+    max-width: 400px;
+    height: 300px; /* Ensure the histograms fit nicely */
+    margin: auto;
+    padding: 10px;
+}
+
 .dashboard {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
+    align-items: flex-start; /* Prevent gauges from stretching */
     gap: 20px;
 }
 .tabs {
@@ -58,14 +73,6 @@ td {
     display: none;
     padding: 20px;
     border-top: none;
-}
-#usageGauge {
-    max-width: 400px;
-    margin: auto;
-}
-#cpuUsageHistogram, #ramUsageHistogram {
-    max-width: 400px;
-    margin: auto;
 }
 #loading-screen {
     position: fixed;
