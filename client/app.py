@@ -33,10 +33,57 @@ DATABASE_URL = os.getenv('DATABASE_URL')
 engine = create_engine(DATABASE_URL, pool_pre_ping=True, pool_recycle=3600)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+# Dash App
+dash_app = Dash(__name__, server=app, url_base_pathname='/')
+dash_app.title = "SysMonitor Dashboard"
+
+dash_app.layout = html.Div([
+    dcc.Interval(id='interval-component', interval=60000, n_intervals=0),  # Update interval to 60 seconds
+    html.H1("SysMonitor Metrics Dashboard"),
+    
+    dcc.Tabs([
+        dcc.Tab(label='Device Metrics', children=[
+            html.Div([
+                dcc.Graph(id='cpu-usage-gauge'),
+                dcc.Graph(id='ram-usage-gauge'),
+                dcc.Graph(id='cpu-usage-histogram'),
+                dcc.Graph(id='ram-usage-histogram'),
+                html.Label("Page:"),
+                dcc.Input(id='page-input', type='number', value=1, min=1),
+                html.Label("Limit:"),
+                dcc.Input(id='limit-input', type='number', value=10, min=1)
+            ])
+        ]),
+        dcc.Tab(label='Third Party Metrics', children=[
+            html.Div([
+                html.Label("Select Metric:"),
+                dcc.Dropdown(
+                    id='metric-dropdown',
+                    options=[
+                        {'label': 'Temperature', 'value': 'temp'},
+                        {'label': 'Humidity', 'value': 'humidity'},
+                        {'label': 'Wind Speed', 'value': 'wind_speed'},
+                        {'label': 'Pressure', 'value': 'pressure'},
+                        {'label': 'Air Quality Index', 'value': 'air_quality'},
+                        {'label': 'Precipitation', 'value': 'precipitation'},
+                        {'label': 'UV Index', 'value': 'uv_index'}
+                    ],
+                    value='temp',
+                ),
+                dcc.Graph(id='weather-map', style={'height': '600px'}),
+                html.Label("Page:"),
+                dcc.Input(id='page-input-weather', type='number', value=1, min=1),
+                html.Label("Limit:"),
+                dcc.Input(id='limit-input-weather', type='number', value=10, min=1)
+            ])
+        ])
+    ])
+])
+
 @app.route('/')
 def index():
     dash_scripts = dash_app._assets_files
-    dash_css = dash_app._external_stylesheets
+    dash_css = dash_app.config.external_stylesheets
     return render_template('index.html', dash_scripts=dash_scripts, dash_css=dash_css)
 
 @app.route('/api/update_metrics', methods=['POST'])
@@ -111,53 +158,6 @@ def fetch_metrics(page=1, limit=10):
     response = requests.get('https://michellevaz.pythonanywhere.com/api/metrics', params=params, timeout=120)
     response.raise_for_status()
     return response.json()
-
-# Dash App
-dash_app = Dash(__name__, server=app, url_base_pathname='/')
-dash_app.title = "SysMonitor Dashboard"
-
-dash_app.layout = html.Div([
-    dcc.Interval(id='interval-component', interval=60000, n_intervals=0),  # Update interval to 60 seconds
-    html.H1("SysMonitor Metrics Dashboard"),
-    
-    dcc.Tabs([
-        dcc.Tab(label='Device Metrics', children=[
-            html.Div([
-                dcc.Graph(id='cpu-usage-gauge'),
-                dcc.Graph(id='ram-usage-gauge'),
-                dcc.Graph(id='cpu-usage-histogram'),
-                dcc.Graph(id='ram-usage-histogram'),
-                html.Label("Page:"),
-                dcc.Input(id='page-input', type='number', value=1, min=1),
-                html.Label("Limit:"),
-                dcc.Input(id='limit-input', type='number', value=10, min=1)
-            ])
-        ]),
-        dcc.Tab(label='Third Party Metrics', children=[
-            html.Div([
-                html.Label("Select Metric:"),
-                dcc.Dropdown(
-                    id='metric-dropdown',
-                    options=[
-                        {'label': 'Temperature', 'value': 'temp'},
-                        {'label': 'Humidity', 'value': 'humidity'},
-                        {'label': 'Wind Speed', 'value': 'wind_speed'},
-                        {'label': 'Pressure', 'value': 'pressure'},
-                        {'label': 'Air Quality Index', 'value': 'air_quality'},
-                        {'label': 'Precipitation', 'value': 'precipitation'},
-                        {'label': 'UV Index', 'value': 'uv_index'}
-                    ],
-                    value='temp',
-                ),
-                dcc.Graph(id='weather-map', style={'height': '600px'}),
-                html.Label("Page:"),
-                dcc.Input(id='page-input-weather', type='number', value=1, min=1),
-                html.Label("Limit:"),
-                dcc.Input(id='limit-input-weather', type='number', value=10, min=1)
-            ])
-        ])
-    ])
-])
 
 @dash_app.callback(
     Output('cpu-usage-gauge', 'figure'),
