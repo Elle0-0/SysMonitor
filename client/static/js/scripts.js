@@ -1,4 +1,6 @@
 document.addEventListener('DOMContentLoaded', function() {
+    let cpuUsageGauge, ramUsageGauge, cpuUsageHistogram, ramUsageHistogram;
+
     function fetchMetrics() {
         fetch('/api/metrics')
             .then(response => response.json())
@@ -28,7 +30,10 @@ document.addEventListener('DOMContentLoaded', function() {
         const cpuUsageData = deviceMetrics.filter(metric => metric.metric_id === 'cpu_usage');
         const ramUsageData = deviceMetrics.filter(metric => metric.metric_id === 'ram_usage');
 
-        const cpuUsageGauge = new Chart(document.getElementById('cpuUsageGauge'), {
+        if (cpuUsageGauge) cpuUsageGauge.destroy();
+        if (ramUsageGauge) ramUsageGauge.destroy();
+
+        cpuUsageGauge = new Chart(document.getElementById('cpuUsageGauge'), {
             type: 'doughnut',
             data: {
                 datasets: [{
@@ -40,13 +45,15 @@ document.addEventListener('DOMContentLoaded', function() {
             options: {
                 circumference: Math.PI,
                 rotation: Math.PI,
-                cutoutPercentage: 80,
-                tooltips: { enabled: false },
-                hover: { mode: null }
+                cutout: '50%',
+                plugins: {
+                    tooltip: { enabled: false },
+                    hover: { mode: null }
+                }
             }
         });
 
-        const ramUsageGauge = new Chart(document.getElementById('ramUsageGauge'), {
+        ramUsageGauge = new Chart(document.getElementById('ramUsageGauge'), {
             type: 'doughnut',
             data: {
                 datasets: [{
@@ -58,9 +65,11 @@ document.addEventListener('DOMContentLoaded', function() {
             options: {
                 circumference: Math.PI,
                 rotation: Math.PI,
-                cutoutPercentage: 80,
-                tooltips: { enabled: false },
-                hover: { mode: null }
+                cutout: '50%',
+                plugins: {
+                    tooltip: { enabled: false },
+                    hover: { mode: null }
+                }
             }
         });
     }
@@ -69,7 +78,10 @@ document.addEventListener('DOMContentLoaded', function() {
         const cpuUsageData = deviceMetrics.filter(metric => metric.metric_id === 'cpu_usage').map(metric => metric.value);
         const ramUsageData = deviceMetrics.filter(metric => metric.metric_id === 'ram_usage').map(metric => metric.value);
 
-        new Chart(document.getElementById('cpuUsageHistogram'), {
+        if (cpuUsageHistogram) cpuUsageHistogram.destroy();
+        if (ramUsageHistogram) ramUsageHistogram.destroy();
+
+        cpuUsageHistogram = new Chart(document.getElementById('cpuUsageHistogram'), {
             type: 'bar',
             data: {
                 labels: cpuUsageData,
@@ -81,13 +93,13 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             options: {
                 scales: {
-                    xAxes: [{ display: false }],
-                    yAxes: [{ ticks: { beginAtZero: true, max: 100 } }]
+                    x: { display: false },
+                    y: { beginAtZero: true, max: 100 }
                 }
             }
         });
 
-        new Chart(document.getElementById('ramUsageHistogram'), {
+        ramUsageHistogram = new Chart(document.getElementById('ramUsageHistogram'), {
             type: 'bar',
             data: {
                 labels: ramUsageData,
@@ -99,8 +111,8 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             options: {
                 scales: {
-                    xAxes: [{ display: false }],
-                    yAxes: [{ ticks: { beginAtZero: true, max: 100 } }]
+                    x: { display: false },
+                    y: { beginAtZero: true, max: 100 }
                 }
             }
         });
@@ -110,8 +122,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const map = new maplibregl.Map({
             container: 'map',
             style: 'https://demotiles.maplibre.org/style.json',
-            center: [0, 0],
-            zoom: 2
+            center: [-8.24389, 53.41291], // Center on Ireland
+            zoom: 6
         });
 
         thirdPartyMetrics.forEach(metric => {
