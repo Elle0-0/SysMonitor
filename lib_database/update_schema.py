@@ -32,7 +32,7 @@ def update_location_names():
         third_party_types = session.query(ThirdPartyType).all()
         for tpt in third_party_types:
             for location, lat, lon in LOCATIONS:
-                if tpt.latitude == lat and tpt.longitude == lon:
+                if float(tpt.latitude) == lat and float(tpt.longitude) == lon:
                     tpt.location_name = location
                     break
         session.commit()
