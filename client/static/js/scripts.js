@@ -38,7 +38,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function fetchMetrics() {
-        fetch('/api/metrics')
+        fetch('https://michellevaz.pythonanywhere.com/api/metrics')
             .then(response => response.json())
             .then(data => {
                 const deviceMetricsTable = document.getElementById("deviceMetricsTable").getElementsByTagName('tbody')[0];
@@ -64,8 +64,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function updateGauges(deviceMetrics) {
-        const cpuUsageData = deviceMetrics.filter(metric => metric.metric_id === 'cpu_usage');
-        const ramUsageData = deviceMetrics.filter(metric => metric.metric_id === 'ram_usage');
+        const cpuUsageData = deviceMetrics.filter(metric => metric.metric_id === 'a96727f1-e90a-4965-831b-af1fd162cfca');
+        const ramUsageData = deviceMetrics.filter(metric => metric.metric_id === '2c368bee-acbc-45b3-91f8-02fa27b22434');
 
         if (cpuUsageGauge) cpuUsageGauge.destroy();
         if (ramUsageGauge) ramUsageGauge.destroy();
@@ -112,8 +112,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function updateHistograms(deviceMetrics) {
-        const cpuUsageData = deviceMetrics.filter(metric => metric.metric_id === 'cpu_usage').map(metric => metric.value);
-        const ramUsageData = deviceMetrics.filter(metric => metric.metric_id === 'ram_usage').map(metric => metric.value);
+        const cpuUsageData = deviceMetrics.filter(metric => metric.metric_id === 'a96727f1-e90a-4965-831b-af1fd162cfca').map(metric => metric.value);
+        const ramUsageData = deviceMetrics.filter(metric => metric.metric_id === '2c368bee-acbc-45b3-91f8-02fa27b22434').map(metric => metric.value);
 
         if (cpuUsageHistogram) cpuUsageHistogram.destroy();
         if (ramUsageHistogram) ramUsageHistogram.destroy();
