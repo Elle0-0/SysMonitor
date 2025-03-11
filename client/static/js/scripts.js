@@ -41,12 +41,15 @@ document.addEventListener('DOMContentLoaded', function() {
         const metrics = weatherDataCache[metricType] || [];
 
         // Clear existing markers
-        map.eachLayer(function(layer) {
-            if (layer.type === 'symbol') {
-                map.removeLayer(layer.id);
-                map.removeSource(layer.id);
-            }
-        });
+        const layers = map.getStyle().layers;
+        if (layers) {
+            layers.forEach(layer => {
+                if (layer.type === 'symbol') {
+                    map.removeLayer(layer.id);
+                    map.removeSource(layer.id);
+                }
+            });
+        }
 
         metrics.forEach(metric => {
             new maplibregl.Marker()
