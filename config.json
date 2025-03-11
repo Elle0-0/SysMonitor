@@ -1,4 +1,4 @@
 {
-    "server_url": "http://localhost:65432/api/aggregate",
+    "server_url": "https://michellevaz.pythonanywhere.com",
     "interval": 60
 }

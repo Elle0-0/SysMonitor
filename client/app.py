@@ -32,7 +32,9 @@ class Application:
     def load_config(self):
         """Load configuration from a file."""
         import json
-        with open('config.json') as config_file:
+        config_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../config.json'))
+        print(f"Loading configuration from: {config_path}")
+        with open(config_path, 'r') as config_file:
             return json.load(config_file)
 
     def setup_routes(self):
@@ -40,8 +42,11 @@ class Application:
         @self.flask_app.route('/')
         def index():
             try:
+                logging.info("Fetching weather data...")
                 self.fetch_weather_data()
+                logging.info("Fetching device metrics...")
                 self.fetch_device_metrics()
+                logging.info("Rendering template...")
                 return render_template('index.html', weather_data=self.weather_data_cache, device_metrics=self.device_metrics_cache, last_updated_time=self.last_updated_time)
             except Exception as e:
                 logging.error(f"Error loading data: {str(e)}")
@@ -129,14 +134,15 @@ class Application:
     @staticmethod
     @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
     def fetch_metrics(endpoint, params=None):
-        response = requests.get(endpoint, params=params, timeout=300)
+        response = requests.get(endpoint, params=params, timeout=10)  # Set a timeout of 10 seconds
         response.raise_for_status()
         return response.json()
 
     def fetch_weather_data(self):
         try:
             logging.info("Requesting weather data from API...")
-            data = self.fetch_metrics('https://michellevaz.pythonanywhere.com/api/weather_data')
+            start_time = time.time()
+            data = self.fetch_metrics(f"{self.config['server_url']}/api/weather_data")
             self.weather_data_cache = {
                 'AirQuality': [metric for metric in data['third_party_metrics'] if 'Air Quality Index' in metric['name']],
                 'Humidity': [metric for metric in data['third_party_metrics'] if 'Humidity' in metric['name']],
@@ -147,7 +153,8 @@ class Application:
                 'WindSpeed': [metric for metric in data['third_party_metrics'] if 'Wind Speed' in metric['name']]
             }
             self.last_updated_time = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime())
-            logging.info("Weather data fetched successfully.")
+            end_time = time.time()
+            logging.info(f"Weather data fetched successfully in {end_time - start_time} seconds.")
         except Exception as e:
             logging.error(f"Error fetching weather data: {str(e)}")
             self.weather_data_cache = {}
@@ -156,9 +163,11 @@ class Application:
     def fetch_device_metrics(self):
         try:
             logging.info("Requesting device metrics from API...")
-            data = self.fetch_metrics('https://michellevaz.pythonanywhere.com/api/device_metrics')
+            start_time = time.time()
+            data = self.fetch_metrics(f"{self.config['server_url']}/api/device_metrics")
             self.device_metrics_cache = data['device_metrics']
-            logging.info("Device metrics fetched successfully.")
+            end_time = time.time()
+            logging.info(f"Device metrics fetched successfully in {end_time - start_time} seconds.")
         except Exception as e:
             logging.error(f"Error fetching device metrics: {str(e)}")
             self.device_metrics_cache = []
