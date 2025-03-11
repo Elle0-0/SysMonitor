@@ -73,6 +73,21 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    window.stopDataCollection = function() {
+        fetch('https://fc8d-193-1-98-140.ngrok-free.app/stop_data_collection', {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log(data.message);
+            alert(data.message);
+        })
+        .catch(error => {
+            console.error('Error stopping data collection:', error);
+            alert('Error stopping data collection. Please check the console for more details.');
+        });
+    }
+
     function updateMap(metricType) {
         console.log(`Updating map for metric type: ${metricType}`);
         if (!map) {

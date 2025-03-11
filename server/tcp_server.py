@@ -19,6 +19,9 @@ SERVER_URL = "https://michellevaz.pythonanywhere.com/api/update_metrics"
 app = Flask(__name__)
 CORS(app)  # Enable CORS
 
+data_collection_thread = None
+stop_event = threading.Event()
+
 @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
 def send_metrics_to_server(device_name, cpu_usage, ram_usage, weather_and_air_quality_data):
     """Sends collected metrics to the server via HTTP POST request."""
@@ -58,7 +61,7 @@ def send_metrics_to_server(device_name, cpu_usage, ram_usage, weather_and_air_qu
 def main():
     device_name = "MichelleLaptop"  # Define your device name here (this can be dynamic if needed)
     
-    while True:
+    while not stop_event.is_set():
         with BlockTimer("Collecting metrics", logging.getLogger(__name__)):
             cpu_usage = get_cpu_usage()
             ram_usage = get_ram_usage()
@@ -68,17 +71,31 @@ def main():
         send_metrics_to_server(device_name, cpu_usage, ram_usage, weather_and_air_quality_data)
 
         # Sleep before collecting the data again (adjust interval as needed)
-        time.sleep(600)  # Sleep for 10 minutes
+        stop_event.wait(600)  # Sleep for 10 minutes or until stop_event is set
 
 @app.route('/start_data_collection', methods=['POST'])
 def start_data_collection():
+    global data_collection_thread, stop_event
     try:
-        # Start the data collection in a separate thread
-        thread = threading.Thread(target=main)
-        thread.start()
-        return jsonify({"message": "Data collection started successfully."}), 200
+        if data_collection_thread is None or not data_collection_thread.is_alive():
+            stop_event.clear()
+            data_collection_thread = threading.Thread(target=main)
+            data_collection_thread.start()
+            return jsonify({"message": "Data collection started successfully."}), 200
+        else:
+            return jsonify({"message": "Data collection is already running."}), 200
     except Exception as e:
         logging.error(f"Error starting data collection: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/stop_data_collection', methods=['POST'])
+def stop_data_collection():
+    global stop_event
+    try:
+        stop_event.set()
+        return jsonify({"message": "Data collection stopped successfully."}), 200
+    except Exception as e:
+        logging.error(f"Error stopping data collection: {e}")
         return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
