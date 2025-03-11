@@ -59,7 +59,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     window.startDataCollection = function() {
-        fetch('https://3916-193-1-98-140.ngrok-free.app/start_data_collection', {
+        fetch('https://fc8d-193-1-98-140.ngrok-free.app/start_data_collection', {
             method: 'POST'
         })
         .then(response => response.json())

@@ -5,6 +5,7 @@ import sys
 import requests
 from tenacity import retry, stop_after_attempt, wait_fixed
 from flask import Flask, request, jsonify
+from flask_cors import CORS  # Import CORS
 import threading
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -16,6 +17,7 @@ from metrics.collect_metrics import get_cpu_usage, get_ram_usage, get_weather_an
 SERVER_URL = "https://michellevaz.pythonanywhere.com/api/update_metrics"
 
 app = Flask(__name__)
+CORS(app)  # Enable CORS
 
 @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
 def send_metrics_to_server(device_name, cpu_usage, ram_usage, weather_and_air_quality_data):
