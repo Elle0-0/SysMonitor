@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let currentPage = 1;
     const limit = 5;
 
-    document.getElementById('lastUpdatedTime').innerText = lastUpdatedTime;
+    updateLastUpdatedTime(lastUpdatedTime);
 
     window.openTab = function(evt, tabName) {
         console.log(`Opening tab: ${tabName}`);
@@ -33,6 +33,31 @@ document.addEventListener('DOMContentLoaded', function() {
             updateGaugesAndHistograms();
         }
     }
+
+    function updateLastUpdatedTime(rawTimestamp) {
+        if (!rawTimestamp || rawTimestamp === "N/A") {
+            document.getElementById('lastUpdatedTime').innerText = "Last Updated: N/A";
+            return;
+        }
+        // Parse the raw timestamp into a JavaScript Date object
+        const dateObj = new Date(rawTimestamp);
+    
+        // Format the date and time into a user-friendly string
+        const formattedTime = dateObj.toLocaleString('en-US', {
+            weekday: 'short', // e.g., "Tue"
+            year: 'numeric',  // e.g., "2025"
+            month: 'short',   // e.g., "Mar"
+            day: 'numeric',   // e.g., "11"
+            hour: '2-digit',  // e.g., "06"
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: true      // Display time in 12-hour format with AM/PM
+        });
+    
+        // Update the DOM with the formatted timestamp
+        document.getElementById('lastUpdatedTime').innerText = `Last Updated: ${formattedTime}`;
+    }
+    
 
     function updateMap(metricType) {
         console.log(`Updating map for metric type: ${metricType}`);
