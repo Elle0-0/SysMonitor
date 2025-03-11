@@ -49,6 +49,7 @@ class ThirdPartyType(Base):
     name = Column(String(255), nullable=False)
     latitude = Column(DECIMAL(9, 6), nullable=False)  # Change to DECIMAL
     longitude = Column(DECIMAL(9, 6), nullable=False)  # Change to DECIMAL
+    location_name = Column(String(255), nullable=True)  # Add location_name field
     
     third_parties = relationship('ThirdParty', back_populates='third_party_type')
     
