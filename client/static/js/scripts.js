@@ -3,6 +3,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let cpuUsageGauge, ramUsageGauge, cpuUsageHistogram, ramUsageHistogram;
     let map;
     let markers = [];
+    let weatherDataCache = {};  // Define weatherDataCache
     const lastUpdatedTime = "{{ last_updated_time }}";
     let currentPage = 1;
     const limit = 5;
@@ -147,7 +148,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const response = await fetch(`/api/weather_data?type=${weatherType}`);
         const data = await response.json();
 
-        updateMap(data.weather_data);  // Function to update your map with new data
+        weatherDataCache[weatherType] = data.weather_data;  // Cache the data
+        updateMap(weatherType);  // Function to update your map with new data
     });
 
     // Initial fetch

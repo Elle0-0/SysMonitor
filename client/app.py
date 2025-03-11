@@ -46,8 +46,8 @@ class Application:
         def index():
             try:
                 logging.info("Fetching weather data...")
-                location = "Limerick"  # Default location
-                self.weather_data_cache = self.fetch_cached_weather_data(location)
+                default_type = "Temperature"  # Default data type
+                self.weather_data_cache = self.fetch_cached_weather_data(default_type)
                 logging.info("Fetching device metrics...")
                 self.fetch_device_metrics(page=1, limit=5)  # Fetch initial data with pagination
                 logging.info("Rendering template...")
@@ -102,19 +102,20 @@ class Application:
 
         @self.flask_app.route('/api/weather_data', methods=['GET'])
         def get_weather_data():
-            location = request.args.get('location')  # Get location from query parameters
+            data_type = request.args.get('type')  # Get data type from query parameters
 
-            if not location:
-                return jsonify({"error": "Location is required"}), 400
+            if not data_type:
+                return jsonify({"error": "Data type is required"}), 400
 
             try:
-                weather_data = self.fetch_cached_weather_data(location)
+                weather_data = self.fetch_cached_weather_data(data_type)
                 return jsonify({
                     "weather_data": [{
                         "name": row.name,
                         "value": row.value,
                         "latitude": float(row.latitude),
                         "longitude": float(row.longitude),
+                        "location_name": row.location_name,
                         "timestamp": row.timestamp.isoformat()
                     } for row in weather_data]
                 })
@@ -147,10 +148,10 @@ class Application:
             self.device_metrics_cache = []
 
     @cache.memoize(timeout=600)  # Cache for 10 minutes
-    def fetch_cached_weather_data(self, location):
-        return self.fetch_weather_data_from_db(location)
+    def fetch_cached_weather_data(self, data_type):
+        return self.fetch_weather_data_from_db(data_type)
 
-    def fetch_weather_data_from_db(self, location):
+    def fetch_weather_data_from_db(self, data_type):
         session = self.SessionLocal()
         try:
             return session.query(
@@ -158,9 +159,10 @@ class Application:
                 ThirdParty.value,
                 ThirdParty.timestamp,
                 ThirdPartyType.latitude,
-                ThirdPartyType.longitude
+                ThirdPartyType.longitude,
+                ThirdPartyType.location_name
             ).join(ThirdPartyType).filter(
-                ThirdPartyType.location_name == location
+                ThirdPartyType.name == data_type
             ).order_by(ThirdParty.timestamp.desc()).all()
         finally:
             session.close()
