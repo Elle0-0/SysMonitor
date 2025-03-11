@@ -18,6 +18,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from dto import MetricsDTO
 from models import Session, DeviceMetric, ThirdParty
 from lib_database.update_database import update_database
+from lib_utils.blocktimer import BlockTimer
 
 # Flask App
 app = Flask(__name__)
@@ -122,8 +123,11 @@ def get_metrics():
         limit = request.args.get('limit', 10, type=int) or 10
         offset = (page - 1) * limit
 
-        device_metrics = session.query(DeviceMetric).order_by(DeviceMetric.timestamp.desc()).offset(offset).limit(limit).all()
-        third_party_metrics = session.query(ThirdParty).order_by(ThirdParty.timestamp.desc()).offset(offset).limit(limit).all()
+        with BlockTimer("Querying device metrics", logging.getLogger(__name__)):
+            device_metrics = session.query(DeviceMetric).order_by(DeviceMetric.timestamp.desc()).offset(offset).limit(limit).all()
+
+        with BlockTimer("Querying third-party metrics", logging.getLogger(__name__)):
+            third_party_metrics = session.query(ThirdParty).order_by(ThirdParty.timestamp.desc()).offset(offset).limit(limit).all()
 
         if not device_metrics and not third_party_metrics:
             logging.warning("No metrics data found.")
@@ -155,7 +159,7 @@ def get_metrics():
 @cache.memoize(timeout=60)  # Cache the data for 60 seconds
 def fetch_metrics(page=1, limit=10):
     params = {'page': page, 'limit': limit}
-    response = requests.get('https://michellevaz.pythonanywhere.com/api/metrics', params=params, timeout=120)
+    response = requests.get('https://michellevaz.pythonanywhere.com/api/metrics', params=params, timeout=300)  # Increase timeout to 300 seconds
     response.raise_for_status()
     return response.json()
 
