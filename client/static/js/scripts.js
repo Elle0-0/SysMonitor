@@ -59,6 +59,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function clearMarkers() {
+        if (markers.length === 0) return; 
         console.log("Clearing markers.");
         markers.forEach(marker => marker.remove());
         markers = [];
@@ -66,22 +67,27 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function updateGaugesAndHistograms(metrics) {
         console.log(`Updating gauges and histograms.`);
-        const cpuUsageData = metrics.filter(metric => metric.metric_name === 'CPU Usage');
-        const ramUsageData = metrics.filter(metric => metric.metric_name === 'RAM Usage');
-
+    
+        // Filter and validate data
+        const cpuUsageData = metrics.filter(metric => metric.metric_name === 'CPU Usage' && metric.value !== null);
+        const ramUsageData = metrics.filter(metric => metric.metric_name === 'RAM Usage' && metric.value !== null);
+    
+        // Safely get the latest values
+        const latestCpuValue = cpuUsageData.length ? cpuUsageData[cpuUsageData.length - 1].value : 0;
+        const latestRamValue = ramUsageData.length ? ramUsageData[ramUsageData.length - 1].value : 0;
+    
+        // Destroy previous charts if they exist
         if (cpuUsageGauge) cpuUsageGauge.destroy();
         if (ramUsageGauge) ramUsageGauge.destroy();
         if (cpuUsageHistogram) cpuUsageHistogram.destroy();
         if (ramUsageHistogram) ramUsageHistogram.destroy();
-
-        const gaugeData = cpuUsageData.length ? cpuUsageData[cpuUsageData.length - 1].value : 0;
-        const ramData = ramUsageData.length ? ramUsageData[ramUsageData.length - 1].value : 0;
-
+    
+        // Create CPU Usage Gauge
         cpuUsageGauge = new Chart(document.getElementById('cpuUsageGauge'), {
             type: 'doughnut',
             data: {
                 datasets: [{
-                    data: [gaugeData, 100 - gaugeData],
+                    data: [latestCpuValue, 100 - latestCpuValue],
                     backgroundColor: ['#4CAF50', '#ddd']
                 }],
                 labels: ['CPU Usage', '']
@@ -91,12 +97,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 rotation: Math.PI,
                 cutout: '50%',
                 plugins: {
-                    tooltip: { enabled: false },
-                    hover: { mode: null },
+                    tooltip: { enabled: true },
                     datalabels: {
                         display: true,
                         formatter: (value, context) => {
-                            return context.chart.data.labels[context.dataIndex] + ': ' + value + '%';
+                            return context.dataIndex === 0 ? `${value}%` : ''; // Display value for 'CPU Usage'
                         },
                         color: '#000',
                         font: {
@@ -107,12 +112,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
         });
-
+    
+        // Create RAM Usage Gauge
         ramUsageGauge = new Chart(document.getElementById('ramUsageGauge'), {
             type: 'doughnut',
             data: {
                 datasets: [{
-                    data: [ramData, 100 - ramData],
+                    data: [latestRamValue, 100 - latestRamValue],
                     backgroundColor: ['#4CAF50', '#ddd']
                 }],
                 labels: ['RAM Usage', '']
@@ -122,12 +128,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 rotation: Math.PI,
                 cutout: '50%',
                 plugins: {
-                    tooltip: { enabled: false },
-                    hover: { mode: null },
+                    tooltip: { enabled: true },
                     datalabels: {
                         display: true,
                         formatter: (value, context) => {
-                            return context.chart.data.labels[context.dataIndex] + ': ' + value + '%';
+                            return context.dataIndex === 0 ? `${value}%` : ''; // Display value for 'RAM Usage'
                         },
                         color: '#000',
                         font: {
@@ -138,11 +143,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
         });
-
+    
+        // Create CPU Usage Histogram
         cpuUsageHistogram = new Chart(document.getElementById('cpuUsageHistogram'), {
             type: 'bar',
             data: {
-                labels: cpuUsageData.map(metric => metric.timestamp),
+                labels: cpuUsageData.map(metric => {
+                    const date = new Date(metric.timestamp);
+                    return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                }),
                 datasets: [{
                     label: 'CPU Usage',
                     data: cpuUsageData.map(metric => metric.value),
@@ -150,25 +159,34 @@ document.addEventListener('DOMContentLoaded', function() {
                 }]
             },
             options: {
+                responsive: true,
                 scales: {
                     x: {
-                        type: 'time',
-                        time: {
-                            unit: 'minute'
+                        title: {
+                            display: true,
+                            text: 'Time'
                         }
                     },
                     y: {
                         beginAtZero: true,
-                        max: 100
+                        max: 100,
+                        title: {
+                            display: true,
+                            text: 'CPU Usage (%)'
+                        }
                     }
                 }
             }
         });
-
+        
+        // Create RAM Usage Histogram
         ramUsageHistogram = new Chart(document.getElementById('ramUsageHistogram'), {
             type: 'bar',
             data: {
-                labels: ramUsageData.map(metric => metric.timestamp),
+                labels: ramUsageData.map(metric => {
+                    const date = new Date(metric.timestamp);
+                    return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                }),
                 datasets: [{
                     label: 'RAM Usage',
                     data: ramUsageData.map(metric => metric.value),
@@ -176,21 +194,28 @@ document.addEventListener('DOMContentLoaded', function() {
                 }]
             },
             options: {
+                responsive: true,
                 scales: {
                     x: {
-                        type: 'time',
-                        time: {
-                            unit: 'minute'
+                        type: 'category',
+                        title: {
+                            display: true,
+                            text: 'Time'
                         }
                     },
                     y: {
                         beginAtZero: true,
-                        max: 100
+                        max: 100,
+                        title: {
+                            display: true,
+                            text: 'RAM Usage (%)'
+                        }
                     }
                 }
             }
         });
     }
+    
 
     function fetchMetrics(page, limit) {
         fetch(`/api/device_metrics?page=${page}&limit=${limit}`)
