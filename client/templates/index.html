@@ -40,6 +40,11 @@
                         {% endfor %}
                     </tbody>
                 </table>
+                <div class="pagination">
+                    <button id="prevPage" onclick="changePage(-1)">Previous</button>
+                    <span>Page <span id="currentPage">{{ current_page }}</span></span>
+                    <button id="nextPage" onclick="changePage(1)">Next</button>
+                </div>
             </div>
         </div>
 

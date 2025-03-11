@@ -45,12 +45,12 @@ class Application:
                 logging.info("Fetching weather data...")
                 self.fetch_weather_data()
                 logging.info("Fetching device metrics...")
-                self.fetch_device_metrics()
+                self.fetch_device_metrics(page=1, limit=5)  # Fetch initial data with pagination
                 logging.info("Rendering template...")
-                return render_template('index.html', weather_data=self.weather_data_cache, device_metrics=self.device_metrics_cache, last_updated_time=self.last_updated_time)
+                return render_template('index.html', weather_data=self.weather_data_cache, device_metrics=self.device_metrics_cache, last_updated_time=self.last_updated_time, current_page=1, limit=5)
             except Exception as e:
                 logging.error(f"Error loading data: {str(e)}")
-                return render_template('index.html', weather_data={}, device_metrics=[], last_updated_time="N/A")
+                return render_template('index.html', weather_data={}, device_metrics=[], last_updated_time="N/A", current_page=1, limit=5)
 
         @self.flask_app.route('/api/update_metrics', methods=['POST'])
         def update_metrics():
@@ -72,7 +72,7 @@ class Application:
             session = self.SessionLocal()
             try:
                 page = request.args.get('page', 1, type=int) or 1
-                limit = request.args.get('limit', 10, type=int) or 10
+                limit = request.args.get('limit', 5, type=int) or 5
                 offset = (page - 1) * limit
 
                 device_metrics = session.query(DeviceMetric).order_by(DeviceMetric.timestamp.desc()).offset(offset).limit(limit).all()
@@ -160,11 +160,11 @@ class Application:
             self.weather_data_cache = {}
             self.last_updated_time = "N/A"
 
-    def fetch_device_metrics(self):
+    def fetch_device_metrics(self, page=1, limit=5):
         try:
             logging.info("Requesting device metrics from API...")
             start_time = time.time()
-            data = self.fetch_metrics(f"{self.config['server_url']}/api/device_metrics")
+            data = self.fetch_metrics(f"{self.config['server_url']}/api/device_metrics", params={'page': page, 'limit': limit})
             self.device_metrics_cache = data['device_metrics']
             end_time = time.time()
             logging.info(f"Device metrics fetched successfully in {end_time - start_time} seconds.")

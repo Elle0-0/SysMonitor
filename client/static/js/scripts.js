@@ -6,6 +6,8 @@ document.addEventListener('DOMContentLoaded', function() {
     let map;
     let markers = [];
     const lastUpdatedTime = "{{ last_updated_time }}";
+    let currentPage = 1;
+    const limit = 5;
 
     document.getElementById('lastUpdatedTime').innerText = lastUpdatedTime;
 
@@ -113,6 +115,43 @@ document.addEventListener('DOMContentLoaded', function() {
             ramUsageGauge = gauge;
         }
     }
+
+    function fetchMetrics(page, limit) {
+        fetch(`/api/device_metrics?page=${page}&limit=${limit}`)
+            .then(response => response.json())
+            .then(data => {
+                updateDeviceMetricsTable(data.device_metrics);
+                document.getElementById('currentPage').innerText = page;
+            })
+            .catch(error => console.error('Error fetching data:', error));
+    }
+
+    function updateDeviceMetricsTable(metrics) {
+        const deviceMetricsTable = document.getElementById("deviceMetricsTable").getElementsByTagName('tbody')[0];
+        deviceMetricsTable.innerHTML = ''; // Clear existing rows
+        metrics.forEach(metric => {
+            const row = deviceMetricsTable.insertRow();
+            row.insertCell(0).innerText = metric.device_id;
+            row.insertCell(1).innerText = metric.metric_id;
+            row.insertCell(2).innerText = metric.value;
+            row.insertCell(3).innerText = metric.timestamp;
+        });
+    }
+
+    window.changePage = function(direction) {
+        currentPage += direction;
+        if (currentPage < 1) currentPage = 1;
+        fetchMetrics(currentPage, limit);
+    };
+
+    window.addEventListener('scroll', () => {
+        if (window.innerHeight + window.scrollY >= document.body.offsetHeight) {
+            fetchMetrics(currentPage, limit);
+        }
+    });
+
+    // Initial fetch
+    fetchMetrics(currentPage, limit);
 
     // Hide loading screen and show content
     console.log("Hiding loading screen and showing content.");
