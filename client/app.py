@@ -1,6 +1,6 @@
 import os
 import sys
-from flask import Flask, jsonify, render_template, request, redirect
+from flask import Flask, jsonify, render_template, request
 from flask_caching import Cache
 from dash import Dash, dcc, html
 from dash.dependencies import Input, Output
@@ -36,10 +36,6 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 @app.route('/')
 def index():
     return render_template('index.html')
-
-@app.route('/dashboard/')
-def dashboard_redirect():
-    return redirect('/dashboard/')
 
 @app.route('/api/update_metrics', methods=['POST'])
 def update_metrics():
@@ -78,7 +74,7 @@ def get_metrics():
         offset = (page - 1) * limit
 
         device_metrics = session.query(DeviceMetric).order_by(DeviceMetric.timestamp.desc()).offset(offset).limit(limit).all()
-        third_party_metrics = session.query(ThirdParty).order_by(ThirdParty.timestamp.desc()).offset(offset).limit(offset).all()
+        third_party_metrics = session.query(ThirdParty).order_by(ThirdParty.timestamp.desc()).offset(offset).limit(limit).all()
 
         if not device_metrics and not third_party_metrics:
             logging.warning("No metrics data found.")
