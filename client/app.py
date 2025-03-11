@@ -57,6 +57,27 @@ class Application:
                 logging.error(f"Error processing request: {str(e)}")
                 return jsonify({"error": str(e)}), 500
 
+        @self.flask_app.route('/api/metrics', methods=['GET'])
+        def get_metrics():
+            session = self.SessionLocal()
+            try:
+                page = request.args.get('page', 1, type=int)
+                limit = request.args.get('limit', 10, type=int)
+                offset = (page - 1) * limit
+
+                device_metrics = session.query(DeviceMetric).offset(offset).limit(limit).all()
+                third_party_metrics = session.query(ThirdParty).offset(offset).limit(limit).all()
+
+                return jsonify({
+                    "device_metrics": [metric.to_dict() for metric in device_metrics],
+                    "third_party_metrics": [metric.to_dict() for metric in third_party_metrics]
+                })
+            except Exception as e:
+                logging.error(f"Error fetching metrics: {str(e)}")
+                return jsonify({"error": str(e)}), 500
+            finally:
+                session.close()
+
     def setup_dash(self):
         """Setup the Dash application."""
         self.dash_app.layout = html.Div([
