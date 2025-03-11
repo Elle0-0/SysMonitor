@@ -27,7 +27,7 @@ class Application:
         self.cache = Cache(self.flask_app, config={'CACHE_TYPE': 'simple'})
         self.setup_routes()
         self.setup_dash()
-        self.engine = create_engine(self.config['DATABASE_URL'])
+        self.engine = create_engine(os.getenv('DATABASE_URL'))
         self.SessionLocal = sessionmaker(bind=self.engine)
 
     def load_config(self):
