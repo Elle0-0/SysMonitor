@@ -45,6 +45,9 @@
             gap: 20px;
         }
     </style>
+    {% for css in dash_css %}
+    <link rel="stylesheet" href="{{ css }}">
+    {% endfor %}
 </head>
 <body>
     <div class="container">
@@ -70,6 +73,9 @@
         <h2>Live Dashboard & Map</h2>
         <div id="dash-container">
             <!-- Dash app will be rendered here -->
+            {% for js in dash_scripts %}
+            <script src="{{ js }}"></script>
+            {% endfor %}
         </div>
     </div>
 

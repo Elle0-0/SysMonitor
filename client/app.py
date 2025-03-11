@@ -35,7 +35,9 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    dash_scripts = dash_app._assets_files
+    dash_css = dash_app._external_stylesheets
+    return render_template('index.html', dash_scripts=dash_scripts, dash_css=dash_css)
 
 @app.route('/api/update_metrics', methods=['POST'])
 def update_metrics():
