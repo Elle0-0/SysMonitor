@@ -109,6 +109,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // Hide loading screen and show content
+    document.getElementById('loading-screen').style.display = 'none';
+    document.querySelector('.container').style.display = 'block';
+
     // Set default tab
     document.getElementsByClassName("tablink")[0].click();
 });

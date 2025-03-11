@@ -10,7 +10,10 @@
     <link href="https://unpkg.com/maplibre-gl@1.15.2/dist/maplibre-gl.css" rel="stylesheet" />
 </head>
 <body>
-    <div class="container">
+    <div id="loading-screen">
+        <p>Loading data, please wait...</p>
+    </div>
+    <div class="container" style="display: none;">
         <h1>Metrics Dashboard</h1>
         <p>Last updated: <span id="lastUpdatedTime">{{ last_updated_time }}</span></p>
 

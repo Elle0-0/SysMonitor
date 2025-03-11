@@ -39,9 +39,13 @@ class Application:
         """Setup the routes for the Flask application."""
         @self.flask_app.route('/')
         def index():
-            self.fetch_weather_data()
-            self.fetch_device_metrics()
-            return render_template('index.html', weather_data=self.weather_data_cache, device_metrics=self.device_metrics_cache, last_updated_time=self.last_updated_time)
+            try:
+                self.fetch_weather_data()
+                self.fetch_device_metrics()
+                return render_template('index.html', weather_data=self.weather_data_cache, device_metrics=self.device_metrics_cache, last_updated_time=self.last_updated_time)
+            except Exception as e:
+                logging.error(f"Error loading data: {str(e)}")
+                return render_template('index.html', weather_data={}, device_metrics=[], last_updated_time="N/A")
 
         @self.flask_app.route('/api/update_metrics', methods=['POST'])
         def update_metrics():
@@ -110,17 +114,21 @@ class Application:
 
     def fetch_weather_data(self):
         response = requests.get('https://michellevaz.pythonanywhere.com/api/metrics')
-        data = response.json()
-        self.weather_data_cache = {
-            'AirQuality': [metric for metric in data['third_party_metrics'] if 'Air Quality Index' in metric['name']],
-            'Humidity': [metric for metric in data['third_party_metrics'] if 'Humidity' in metric['name']],
-            'Precipitation': [metric for metric in data['third_party_metrics'] if 'Precipitation' in metric['name']],
-            'Pressure': [metric for metric in data['third_party_metrics'] if 'Pressure' in metric['name']],
-            'Temperature': [metric for metric in data['third_party_metrics'] if 'Temperature' in metric['name']],
-            'UVIndex': [metric for metric in data['third_party_metrics'] if 'UV Index' in metric['name']],
-            'WindSpeed': [metric for metric in data['third_party_metrics'] if 'Wind Speed' in metric['name']]
-        }
-        self.last_updated_time = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime())
+        if response.status_code == 200 and response.content:
+            data = response.json()
+            self.weather_data_cache = {
+                'AirQuality': [metric for metric in data['third_party_metrics'] if 'Air Quality Index' in metric['name']],
+                'Humidity': [metric for metric in data['third_party_metrics'] if 'Humidity' in metric['name']],
+                'Precipitation': [metric for metric in data['third_party_metrics'] if 'Precipitation' in metric['name']],
+                'Pressure': [metric for metric in data['third_party_metrics'] if 'Pressure' in metric['name']],
+                'Temperature': [metric for metric in data['third_party_metrics'] if 'Temperature' in metric['name']],
+                'UVIndex': [metric for metric in data['third_party_metrics'] if 'UV Index' in metric['name']],
+                'WindSpeed': [metric for metric in data['third_party_metrics'] if 'Wind Speed' in metric['name']]
+            }
+            self.last_updated_time = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime())
+        else:
+            self.weather_data_cache = {}
+            self.last_updated_time = "N/A"
 
     def fetch_device_metrics(self):
         response = requests.get('https://michellevaz.pythonanywhere.com/api/metrics')
