@@ -15,13 +15,16 @@ from lib_database.update_database import update_database
 from dto import MetricsDTO
 from models import DeviceMetric, ThirdParty, Metric, Device, ThirdPartyType
 
+# Define the cache
+cache = Cache(config={'CACHE_TYPE': 'simple', 'CACHE_DEFAULT_TIMEOUT': 600})  # 600 seconds = 10 minutes
+
 class Application:
     def __init__(self):
         """Initialize the application with required configuration and logging."""
         self.config = self.load_config()
         self.logger = logging.getLogger(__name__)
         self.flask_app = Flask(__name__)
-        self.cache = Cache(self.flask_app, config={'CACHE_TYPE': 'simple', 'CACHE_DEFAULT_TIMEOUT': 600})  # 600 seconds = 10 minutes
+        cache.init_app(self.flask_app)  # Initialize the cache with the Flask app
         self.setup_routes()
         self.engine = create_engine(os.getenv('DATABASE_URL'))
         self.SessionLocal = sessionmaker(bind=self.engine)
@@ -43,7 +46,8 @@ class Application:
         def index():
             try:
                 logging.info("Fetching weather data...")
-                self.fetch_weather_data()
+                location = "Limerick"  # Default location
+                self.weather_data_cache = self.fetch_cached_weather_data(location)
                 logging.info("Fetching device metrics...")
                 self.fetch_device_metrics(page=1, limit=5)  # Fetch initial data with pagination
                 logging.info("Rendering template...")
@@ -98,11 +102,13 @@ class Application:
 
         @self.flask_app.route('/api/weather_data', methods=['GET'])
         def get_weather_data():
-            weather_type = request.args.get('type', 'UV Index')  # Default to UV Index
-            counties = ["Dublin", "Cork", "Galway", "Limerick", "Waterford", "Belfast", "Kilkenny", "Sligo", "Wexford", "Drogheda"]  # Replace with your actual county names
+            location = request.args.get('location')  # Get location from query parameters
+
+            if not location:
+                return jsonify({"error": "Location is required"}), 400
 
             try:
-                weather_data = self.fetch_cached_weather_data(weather_type, counties)
+                weather_data = self.fetch_cached_weather_data(location)
                 return jsonify({
                     "weather_data": [{
                         "name": row.name,
@@ -128,28 +134,6 @@ class Application:
         response.raise_for_status()
         return response.json()
 
-    def fetch_weather_data(self):
-        try:
-            logging.info("Requesting weather data from API...")
-            start_time = time.time()
-            data = self.fetch_metrics(f"{self.config['server_url']}/api/weather_data")
-            self.weather_data_cache = {
-                'AirQuality': [metric for metric in data['third_party_metrics'] if 'Air Quality Index' in metric['name']],
-                'Humidity': [metric for metric in data['third_party_metrics'] if 'Humidity' in metric['name']],
-                'Precipitation': [metric for metric in data['third_party_metrics'] if 'Precipitation' in metric['name']],
-                'Pressure': [metric for metric in data['third_party_metrics'] if 'Pressure' in metric['name']],
-                'Temperature': [metric for metric in data['third_party_metrics'] if 'Temperature' in metric['name']],
-                'UVIndex': [metric for metric in data['third_party_metrics'] if 'UV Index' in metric['name']],
-                'WindSpeed': [metric for metric in data['third_party_metrics'] if 'Wind Speed' in metric['name']]
-            }
-            self.last_updated_time = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime())
-            end_time = time.time()
-            logging.info(f"Weather data fetched successfully in {end_time - start_time} seconds.")
-        except Exception as e:
-            logging.error(f"Error fetching weather data: {str(e)}")
-            self.weather_data_cache = {}
-            self.last_updated_time = "N/A"
-
     def fetch_device_metrics(self, page=1, limit=5):
         try:
             logging.info("Requesting device metrics from API...")
@@ -162,10 +146,11 @@ class Application:
             logging.error(f"Error fetching device metrics: {str(e)}")
             self.device_metrics_cache = []
 
-    def fetch_cached_weather_data(self, weather_type, counties):
-        return self.cache.memoize(timeout=600)(self.fetch_weather_data_from_db)(weather_type, counties)
+    @cache.memoize(timeout=600)  # Cache for 10 minutes
+    def fetch_cached_weather_data(self, location):
+        return self.fetch_weather_data_from_db(location)
 
-    def fetch_weather_data_from_db(self, weather_type, counties):
+    def fetch_weather_data_from_db(self, location):
         session = self.SessionLocal()
         try:
             return session.query(
@@ -175,8 +160,7 @@ class Application:
                 ThirdPartyType.latitude,
                 ThirdPartyType.longitude
             ).join(ThirdPartyType).filter(
-                ThirdParty.name == weather_type,
-                ThirdPartyType.name.in_(counties)
+                ThirdPartyType.location_name == location
             ).order_by(ThirdParty.timestamp.desc()).all()
         finally:
             session.close()
