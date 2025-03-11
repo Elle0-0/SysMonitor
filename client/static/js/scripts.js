@@ -1,6 +1,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     let cpuUsageGauge, ramUsageGauge, cpuUsageHistogram, ramUsageHistogram;
     let weatherDataCache = {};
+    let deviceMetricsCache = [];
     let map;
 
     window.openTab = function(evt, tabName) {
@@ -40,15 +41,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const metrics = weatherDataCache[metricType] || [];
 
         // Clear existing markers
-        const layers = map.getStyle().layers;
-        if (layers) {
-            layers.forEach(layer => {
-                if (layer.type === 'symbol') {
-                    map.removeLayer(layer.id);
-                    map.removeSource(layer.id);
-                }
-            });
-        }
+        map.eachLayer(function(layer) {
+            if (layer.type === 'symbol') {
+                map.removeLayer(layer.id);
+                map.removeSource(layer.id);
+            }
+        });
 
         metrics.forEach(metric => {
             new maplibregl.Marker()
@@ -65,6 +63,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const deviceMetricsTable = document.getElementById("deviceMetricsTable").getElementsByTagName('tbody')[0];
                 deviceMetricsTable.innerHTML = '';
                 if (data.device_metrics) {
+                    deviceMetricsCache = data.device_metrics; // Cache device metrics
                     data.device_metrics.forEach(metric => {
                         const row = deviceMetricsTable.insertRow();
                         row.insertCell(0).innerText = metric.device_id;
@@ -76,7 +75,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     console.error('No device metrics found in the response.');
                 }
 
-                updateHistograms(data.device_metrics);
+                updateHistograms(deviceMetricsCache);
                 cacheWeatherData(data.third_party_metrics);
                 window.updateMap('AirQuality');
             })
@@ -84,8 +83,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function updateGauges(metricType) {
-        const cpuUsageData = deviceMetrics.filter(metric => metric.metric_id === 'a96727f1-e90a-4965-831b-af1fd162cfca');
-        const ramUsageData = deviceMetrics.filter(metric => metric.metric_id === '2c368bee-acbc-45b3-91f8-02fa27b22434');
+        const cpuUsageData = deviceMetricsCache.filter(metric => metric.metric_id === 'a96727f1-e90a-4965-831b-af1fd162cfca');
+        const ramUsageData = deviceMetricsCache.filter(metric => metric.metric_id === '2c368bee-acbc-45b3-91f8-02fa27b22434');
 
         if (cpuUsageGauge) cpuUsageGauge.destroy();
         if (ramUsageGauge) ramUsageGauge.destroy();
