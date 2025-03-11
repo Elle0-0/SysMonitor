@@ -3,7 +3,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let cpuUsageGauge, ramUsageGauge, cpuUsageHistogram, ramUsageHistogram;
     let map;
     let markers = [];
-    let weatherDataCache = {};  // Define weatherDataCache
+    let weatherDataCache = {};
     const lastUpdatedTime = "{{ last_updated_time }}";
     let currentPage = 1;
     const limit = 5;
@@ -27,7 +27,6 @@ document.addEventListener('DOMContentLoaded', function() {
             evt.currentTarget.className += " active";
         }
 
-        // Update map with the selected weather data
         if (tabName in weatherDataCache) {
             updateMap(tabName);
         } else if (tabName === 'CPUUsage' || tabName === 'RAMUsage') {
@@ -41,14 +40,13 @@ document.addEventListener('DOMContentLoaded', function() {
             map = new maplibregl.Map({
                 container: 'map',
                 style: 'https://demotiles.maplibre.org/style.json',
-                center: [-8.24389, 53.41291], // Center on Ireland
+                center: [-8.24389, 53.41291],
                 zoom: 6
             });
         }
 
         const metrics = weatherDataCache[metricType] || [];
 
-        // Clear existing markers
         clearMarkers();
 
         metrics.forEach(metric => {
@@ -127,11 +125,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function updateDeviceMetricsTable(metrics) {
         const deviceMetricsTable = document.getElementById("deviceMetricsTable").getElementsByTagName('tbody')[0];
-        deviceMetricsTable.innerHTML = ''; // Clear existing rows
+        deviceMetricsTable.innerHTML = '';
         metrics.forEach(metric => {
             const row = deviceMetricsTable.insertRow();
-            row.insertCell(0).innerText = metric.device_id;
-            row.insertCell(1).innerText = metric.metric_id;
+            row.insertCell(0).innerText = metric.device_name;
+            row.insertCell(1).innerText = metric.metric_name;
             row.insertCell(2).innerText = metric.value;
             row.insertCell(3).innerText = metric.timestamp;
         });
@@ -148,18 +146,15 @@ document.addEventListener('DOMContentLoaded', function() {
         const response = await fetch(`/api/weather_data?type=${weatherType}`);
         const data = await response.json();
 
-        weatherDataCache[weatherType] = data.weather_data;  // Cache the data
-        updateMap(weatherType);  // Function to update your map with new data
+        weatherDataCache[weatherType] = data.weather_data;
+        updateMap(weatherType);
     });
 
-    // Initial fetch
     fetchMetrics(currentPage, limit);
 
-    // Hide loading screen and show content
     console.log("Hiding loading screen and showing content.");
     document.getElementById('loading-screen').style.display = 'none';
     document.querySelector('.container').style.display = 'block';
 
-    // Set default tab
     document.getElementsByClassName("tablink")[0].click();
 });
