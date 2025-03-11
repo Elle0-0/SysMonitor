@@ -1,8 +1,9 @@
 document.addEventListener('DOMContentLoaded', function() {
     let cpuUsageGauge, ramUsageGauge, cpuUsageHistogram, ramUsageHistogram;
+    let weatherDataCache = {};
 
     function fetchMetrics() {
-        fetch('/api/metrics')
+        fetch('https://michellevaz.pythonanywhere.com/api/metrics')
             .then(response => response.json())
             .then(data => {
                 const deviceMetricsTable = document.getElementById("deviceMetricsTable").getElementsByTagName('tbody')[0];
@@ -21,7 +22,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 updateGauges(data.device_metrics);
                 updateHistograms(data.device_metrics);
-                updateMap(data.third_party_metrics);
+                cacheWeatherData(data.third_party_metrics);
+                updateMap('AirQuality');
             })
             .catch(error => console.error('Error fetching data:', error));
     }
@@ -37,7 +39,7 @@ document.addEventListener('DOMContentLoaded', function() {
             type: 'doughnut',
             data: {
                 datasets: [{
-                    data: [cpuUsageData.length ? cpuUsageData[cpuUsageData.length - 1].value : 0, 100],
+                    data: [cpuUsageData.length ? cpuUsageData[cpuUsageData.length - 1].value : 0, 100 - (cpuUsageData.length ? cpuUsageData[cpuUsageData.length - 1].value : 0)],
                     backgroundColor: ['#4CAF50', '#ddd']
                 }],
                 labels: ['CPU Usage', '']
@@ -57,7 +59,7 @@ document.addEventListener('DOMContentLoaded', function() {
             type: 'doughnut',
             data: {
                 datasets: [{
-                    data: [ramUsageData.length ? ramUsageData[ramUsageData.length - 1].value : 0, 100],
+                    data: [ramUsageData.length ? ramUsageData[ramUsageData.length - 1].value : 0, 100 - (ramUsageData.length ? ramUsageData[ramUsageData.length - 1].value : 0)],
                     backgroundColor: ['#4CAF50', '#ddd']
                 }],
                 labels: ['RAM Usage', '']
@@ -118,7 +120,19 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    function updateMap(thirdPartyMetrics) {
+    function cacheWeatherData(thirdPartyMetrics) {
+        weatherDataCache = {
+            AirQuality: thirdPartyMetrics.filter(metric => metric.name.includes('Air Quality Index')),
+            Humidity: thirdPartyMetrics.filter(metric => metric.name.includes('Humidity')),
+            Precipitation: thirdPartyMetrics.filter(metric => metric.name.includes('Precipitation')),
+            Pressure: thirdPartyMetrics.filter(metric => metric.name.includes('Pressure')),
+            Temperature: thirdPartyMetrics.filter(metric => metric.name.includes('Temperature')),
+            UVIndex: thirdPartyMetrics.filter(metric => metric.name.includes('UV Index')),
+            WindSpeed: thirdPartyMetrics.filter(metric => metric.name.includes('Wind Speed'))
+        };
+    }
+
+    function updateMap(metricType) {
         const map = new maplibregl.Map({
             container: 'map',
             style: 'https://demotiles.maplibre.org/style.json',
@@ -126,7 +140,9 @@ document.addEventListener('DOMContentLoaded', function() {
             zoom: 6
         });
 
-        thirdPartyMetrics.forEach(metric => {
+        const metrics = weatherDataCache[metricType] || [];
+
+        metrics.forEach(metric => {
             new maplibregl.Marker()
                 .setLngLat([metric.longitude, metric.latitude])
                 .setPopup(new maplibregl.Popup().setHTML(`<h3>${metric.name}</h3><p>${metric.value}</p>`))
@@ -134,6 +150,26 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    function openTab(evt, tabName) {
+        var i, tabcontent, tablinks;
+        tabcontent = document.getElementsByClassName("tabcontent");
+        for (i = 0; i < tabcontent.length; i++) {
+            tabcontent[i].style.display = "none";
+        }
+        tablinks = document.getElementsByClassName("tablink");
+        for (i = 0; i < tablinks.length; i++) {
+            tablinks[i].className = tablinks[i].className.replace(" active", "");
+        }
+        document.getElementById(tabName).style.display = "block";
+        evt.currentTarget.className += " active";
+
+        // Update map with the selected weather data
+        updateMap(tabName);
+    }
+
     setInterval(fetchMetrics, 60000);  // Update interval to 60000 milliseconds (60 seconds)
     fetchMetrics();
+
+    // Set default tab
+    document.getElementsByClassName("tablink")[0].click();
 });
