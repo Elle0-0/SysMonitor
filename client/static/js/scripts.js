@@ -3,6 +3,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let weatherDataCache = {};
     let deviceMetricsCache = [];
     let map;
+    let markers = [];
 
     window.openTab = function(evt, tabName) {
         var i, tabcontent, tablinks;
@@ -41,22 +42,20 @@ document.addEventListener('DOMContentLoaded', function() {
         const metrics = weatherDataCache[metricType] || [];
 
         // Clear existing markers
-        const layers = map.getStyle().layers;
-        if (layers) {
-            layers.forEach(layer => {
-                if (layer.type === 'symbol') {
-                    map.removeLayer(layer.id);
-                    map.removeSource(layer.id);
-                }
-            });
-        }
+        clearMarkers();
 
         metrics.forEach(metric => {
-            new maplibregl.Marker()
+            const marker = new maplibregl.Marker()
                 .setLngLat([metric.longitude, metric.latitude])
                 .setPopup(new maplibregl.Popup().setHTML(`<h3>${metric.name}</h3><p>${metric.value}</p>`))
                 .addTo(map);
+            markers.push(marker);
         });
+    }
+
+    function clearMarkers() {
+        markers.forEach(marker => marker.remove());
+        markers = [];
     }
 
     function fetchMetrics() {
