@@ -7,6 +7,7 @@ from sqlalchemy.orm import sessionmaker
 import requests
 from tenacity import retry, stop_after_attempt, wait_fixed
 from flask_caching import Cache
+import time
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from lib_utils.blocktimer import BlockTimer
@@ -24,6 +25,9 @@ class Application:
         self.setup_routes()
         self.engine = create_engine(os.getenv('DATABASE_URL'))
         self.SessionLocal = sessionmaker(bind=self.engine)
+        self.weather_data_cache = {}
+        self.device_metrics_cache = []
+        self.last_updated_time = None
 
     def load_config(self):
         """Load configuration from a file."""
@@ -35,7 +39,9 @@ class Application:
         """Setup the routes for the Flask application."""
         @self.flask_app.route('/')
         def index():
-            return render_template('index.html')
+            self.fetch_weather_data()
+            self.fetch_device_metrics()
+            return render_template('index.html', weather_data=self.weather_data_cache, device_metrics=self.device_metrics_cache, last_updated_time=self.last_updated_time)
 
         @self.flask_app.route('/api/update_metrics', methods=['POST'])
         def update_metrics():
@@ -89,6 +95,11 @@ class Application:
             finally:
                 session.close()
 
+        @self.flask_app.route('/update_device_metrics')
+        def update_device_metrics():
+            self.fetch_device_metrics()
+            return jsonify(device_metrics=self.device_metrics_cache, last_updated_time=self.last_updated_time)
+
     @staticmethod
     @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
     def fetch_metrics(page=1, limit=10):
@@ -96,6 +107,25 @@ class Application:
         response = requests.get('https://michellevaz.pythonanywhere.com/api/metrics', params=params, timeout=300)  # Increase timeout to 300 seconds
         response.raise_for_status()
         return response.json()
+
+    def fetch_weather_data(self):
+        response = requests.get('https://michellevaz.pythonanywhere.com/api/metrics')
+        data = response.json()
+        self.weather_data_cache = {
+            'AirQuality': [metric for metric in data['third_party_metrics'] if 'Air Quality Index' in metric['name']],
+            'Humidity': [metric for metric in data['third_party_metrics'] if 'Humidity' in metric['name']],
+            'Precipitation': [metric for metric in data['third_party_metrics'] if 'Precipitation' in metric['name']],
+            'Pressure': [metric for metric in data['third_party_metrics'] if 'Pressure' in metric['name']],
+            'Temperature': [metric for metric in data['third_party_metrics'] if 'Temperature' in metric['name']],
+            'UVIndex': [metric for metric in data['third_party_metrics'] if 'UV Index' in metric['name']],
+            'WindSpeed': [metric for metric in data['third_party_metrics'] if 'Wind Speed' in metric['name']]
+        }
+        self.last_updated_time = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime())
+
+    def fetch_device_metrics(self):
+        response = requests.get('https://michellevaz.pythonanywhere.com/api/metrics')
+        data = response.json()
+        self.device_metrics_cache = data['device_metrics']
 
     def run(self) -> int:
         """Main application logic."""

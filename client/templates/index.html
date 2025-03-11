@@ -12,6 +12,7 @@
 <body>
     <div class="container">
         <h1>Metrics Dashboard</h1>
+        <p>Last updated: <span id="lastUpdatedTime">{{ last_updated_time }}</span></p>
 
         <div class="dashboard">
             <div>
@@ -25,7 +26,16 @@
                             <th>Timestamp</th>
                         </tr>
                     </thead>
-                    <tbody></tbody>
+                    <tbody>
+                        {% for metric in device_metrics %}
+                        <tr>
+                            <td>{{ metric.device_id }}</td>
+                            <td>{{ metric.metric_id }}</td>
+                            <td>{{ metric.value }}</td>
+                            <td>{{ metric.timestamp }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
                 </table>
             </div>
         </div>

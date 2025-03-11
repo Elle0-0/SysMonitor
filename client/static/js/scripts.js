@@ -1,9 +1,12 @@
 document.addEventListener('DOMContentLoaded', function() {
     let cpuUsageGauge, ramUsageGauge, cpuUsageHistogram, ramUsageHistogram;
-    let weatherDataCache = {};
-    let deviceMetricsCache = [];
+    let weatherDataCache = JSON.parse(document.getElementById('weatherData').textContent);
+    let deviceMetricsCache = JSON.parse(document.getElementById('deviceMetrics').textContent);
     let map;
     let markers = [];
+    const lastUpdatedTime = "{{ last_updated_time }}";
+
+    document.getElementById('lastUpdatedTime').innerText = lastUpdatedTime;
 
     window.openTab = function(evt, tabName) {
         var i, tabcontent, tablinks;
@@ -23,13 +26,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Update map with the selected weather data
         if (tabName in weatherDataCache) {
-            window.updateMap(tabName);
+            updateMap(tabName);
         } else if (tabName === 'CPUUsage' || tabName === 'RAMUsage') {
             updateGauges(tabName);
         }
     }
 
-    window.updateMap = function(metricType) {
+    function updateMap(metricType) {
         if (!map) {
             map = new maplibregl.Map({
                 container: 'map',
@@ -56,32 +59,6 @@ document.addEventListener('DOMContentLoaded', function() {
     function clearMarkers() {
         markers.forEach(marker => marker.remove());
         markers = [];
-    }
-
-    function fetchMetrics() {
-        fetch('https://michellevaz.pythonanywhere.com/api/metrics')
-            .then(response => response.json())
-            .then(data => {
-                const deviceMetricsTable = document.getElementById("deviceMetricsTable").getElementsByTagName('tbody')[0];
-                deviceMetricsTable.innerHTML = '';
-                if (data.device_metrics) {
-                    deviceMetricsCache = data.device_metrics; // Cache device metrics
-                    data.device_metrics.forEach(metric => {
-                        const row = deviceMetricsTable.insertRow();
-                        row.insertCell(0).innerText = metric.device_id;
-                        row.insertCell(1).innerText = metric.metric_id;
-                        row.insertCell(2).innerText = metric.value;
-                        row.insertCell(3).innerText = metric.timestamp;
-                    });
-                } else {
-                    console.error('No device metrics found in the response.');
-                }
-
-                updateHistograms(deviceMetricsCache);
-                cacheWeatherData(data.third_party_metrics);
-                window.updateMap('AirQuality');
-            })
-            .catch(error => console.error('Error fetching data:', error));
     }
 
     function updateGauges(metricType) {
@@ -131,65 +108,6 @@ document.addEventListener('DOMContentLoaded', function() {
             ramUsageGauge = gauge;
         }
     }
-
-    function updateHistograms(deviceMetrics) {
-        const cpuUsageData = deviceMetrics.filter(metric => metric.metric_id === 'a96727f1-e90a-4965-831b-af1fd162cfca').map(metric => metric.value);
-        const ramUsageData = deviceMetrics.filter(metric => metric.metric_id === '2c368bee-acbc-45b3-91f8-02fa27b22434').map(metric => metric.value);
-
-        if (cpuUsageHistogram) cpuUsageHistogram.destroy();
-        if (ramUsageHistogram) ramUsageHistogram.destroy();
-
-        cpuUsageHistogram = new Chart(document.getElementById('cpuUsageHistogram'), {
-            type: 'bar',
-            data: {
-                labels: cpuUsageData,
-                datasets: [{
-                    label: 'CPU Usage',
-                    data: cpuUsageData,
-                    backgroundColor: '#4CAF50'
-                }]
-            },
-            options: {
-                scales: {
-                    x: { display: false },
-                    y: { beginAtZero: true, max: 100 }
-                }
-            }
-        });
-
-        ramUsageHistogram = new Chart(document.getElementById('ramUsageHistogram'), {
-            type: 'bar',
-            data: {
-                labels: ramUsageData,
-                datasets: [{
-                    label: 'RAM Usage',
-                    data: ramUsageData,
-                    backgroundColor: '#4CAF50'
-                }]
-            },
-            options: {
-                scales: {
-                    x: { display: false },
-                    y: { beginAtZero: true, max: 100 }
-                }
-            }
-        });
-    }
-
-    function cacheWeatherData(thirdPartyMetrics) {
-        weatherDataCache = {
-            AirQuality: thirdPartyMetrics.filter(metric => metric.name.includes('Air Quality Index')),
-            Humidity: thirdPartyMetrics.filter(metric => metric.name.includes('Humidity')),
-            Precipitation: thirdPartyMetrics.filter(metric => metric.name.includes('Precipitation')),
-            Pressure: thirdPartyMetrics.filter(metric => metric.name.includes('Pressure')),
-            Temperature: thirdPartyMetrics.filter(metric => metric.name.includes('Temperature')),
-            UVIndex: thirdPartyMetrics.filter(metric => metric.name.includes('UV Index')),
-            WindSpeed: thirdPartyMetrics.filter(metric => metric.name.includes('Wind Speed'))
-        };
-    }
-
-    setInterval(fetchMetrics, 60000);  // Update interval to 60000 milliseconds (60 seconds)
-    fetchMetrics();
 
     // Set default tab
     document.getElementsByClassName("tablink")[0].click();
