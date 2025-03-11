@@ -4,6 +4,8 @@ import os
 import sys
 import requests
 from tenacity import retry, stop_after_attempt, wait_fixed
+from flask import Flask, request, jsonify
+import threading
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -12,6 +14,8 @@ from metrics.collect_metrics import get_cpu_usage, get_ram_usage, get_weather_an
 
 # Replace with your server's endpoint URL
 SERVER_URL = "https://michellevaz.pythonanywhere.com/api/update_metrics"
+
+app = Flask(__name__)
 
 @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
 def send_metrics_to_server(device_name, cpu_usage, ram_usage, weather_and_air_quality_data):
@@ -64,6 +68,17 @@ def main():
         # Sleep before collecting the data again (adjust interval as needed)
         time.sleep(600)  # Sleep for 10 minutes
 
+@app.route('/start_data_collection', methods=['POST'])
+def start_data_collection():
+    try:
+        # Start the data collection in a separate thread
+        thread = threading.Thread(target=main)
+        thread.start()
+        return jsonify({"message": "Data collection started successfully."}), 200
+    except Exception as e:
+        logging.error(f"Error starting data collection: {e}")
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    main()
+    app.run(host='0.0.0.0', port=65433)

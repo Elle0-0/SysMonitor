@@ -57,7 +57,21 @@ document.addEventListener('DOMContentLoaded', function() {
         // Update the DOM with the formatted timestamp
         document.getElementById('lastUpdatedTime').innerText = `Last Updated: ${formattedTime}`;
     }
-    
+
+    function startDataCollection() {
+        fetch('https://3916-193-1-98-140.ngrok-free.app/start_data_collection', {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log(data.message);
+            alert(data.message);
+        })
+        .catch(error => {
+            console.error('Error starting data collection:', error);
+            alert('Error starting data collection. Please check the console for more details.');
+        });
+    }
 
     function updateMap(metricType) {
         console.log(`Updating map for metric type: ${metricType}`);
