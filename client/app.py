@@ -40,7 +40,10 @@ class Application:
         """Setup the routes for the Flask application."""
         @self.flask_app.route('/')
         def index():
-            return render_template('index.html')
+            dash_scripts = self.dash_app._assets_files
+            dash_css = [css for css in dash_scripts if css.endswith('.css')]
+            dash_js = [js for js in dash_scripts if js.endswith('.js')]
+            return render_template('index.html', dash_css=dash_css, dash_scripts=dash_js)
 
         @self.flask_app.route('/api/update_metrics', methods=['POST'])
         def update_metrics():
