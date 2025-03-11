@@ -10,14 +10,12 @@ import plotly.graph_objs as go
 import requests
 from tenacity import retry, stop_after_attempt, wait_fixed
 from flask_caching import Cache
+
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from lib_utils.blocktimer import BlockTimer
 from lib_database.update_database import update_database
 from dto import MetricsDTO
 from models import DeviceMetric, ThirdParty, Metric, Device
-
-# Add the project root directory to the system path
-
 
 class Application:
     def __init__(self):
@@ -26,6 +24,7 @@ class Application:
         self.logger = logging.getLogger(__name__)
         self.flask_app = Flask(__name__)
         self.dash_app = Dash(__name__, server=self.flask_app, url_base_pathname='/dash/')
+        self.cache = Cache(self.flask_app, config={'CACHE_TYPE': 'simple'})
         self.setup_routes()
         self.setup_dash()
         self.engine = create_engine(self.config['DATABASE_URL'])
@@ -181,7 +180,6 @@ class Application:
 
     @staticmethod
     @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
-    @cache.memoize(timeout=60)  # Cache the data for 60 seconds
     def fetch_metrics(page=1, limit=10):
         params = {'page': page, 'limit': limit}
         response = requests.get('https://michellevaz.pythonanywhere.com/api/metrics', params=params, timeout=300)  # Increase timeout to 300 seconds
