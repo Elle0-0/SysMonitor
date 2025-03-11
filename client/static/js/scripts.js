@@ -58,7 +58,7 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('lastUpdatedTime').innerText = `Last Updated: ${formattedTime}`;
     }
 
-    function startDataCollection() {
+    window.startDataCollection = function() {
         fetch('https://3916-193-1-98-140.ngrok-free.app/start_data_collection', {
             method: 'POST'
         })
@@ -91,7 +91,7 @@ document.addEventListener('DOMContentLoaded', function() {
         metrics.forEach(metric => {
             const marker = new maplibregl.Marker()
                 .setLngLat([metric.longitude, metric.latitude])
-                .setPopup(new maplibregl.Popup().setHTML(`<h3>${metric.name}</h3><p>${metric.value}</p>`))
+                .setPopup(new maplibregl.Popup().setHTML(`<div class="popup-content"><h3>${metric.name}</h3><p>${metric.value}</p></div>`))
                 .addTo(map);
             markers.push(marker);
         });

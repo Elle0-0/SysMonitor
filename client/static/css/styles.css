@@ -71,6 +71,9 @@ button:hover {
     height: 500px;
     border-radius: 10px;
 }
+.popup-content {
+    color: #000; /* Ensure the text is visible */
+}
 .gauge-container, .chart-container {
     display: flex;
     justify-content: center;
