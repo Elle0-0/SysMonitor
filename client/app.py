@@ -62,8 +62,8 @@ class Application:
                 logging.error(f"Error processing request: {str(e)}")
                 return jsonify({"error": str(e)}), 500
 
-        @self.flask_app.route('/api/metrics', methods=['GET'])
-        def get_metrics():
+        @self.flask_app.route('/api/device_metrics', methods=['GET'])
+        def get_device_metrics():
             session = self.SessionLocal()
             try:
                 page = request.args.get('page', 1, type=int) or 1
@@ -71,10 +71,9 @@ class Application:
                 offset = (page - 1) * limit
 
                 device_metrics = session.query(DeviceMetric).order_by(DeviceMetric.timestamp.desc()).offset(offset).limit(limit).all()
-                third_party_metrics = session.query(ThirdParty).order_by(ThirdParty.timestamp.desc()).offset(offset).limit(limit).all()
 
-                if not device_metrics and not third_party_metrics:
-                    logging.warning("No metrics data found.")
+                if not device_metrics:
+                    logging.warning("No device metrics data found.")
                     
                 return jsonify({
                     "device_metrics": [{
@@ -83,6 +82,29 @@ class Application:
                         "value": metric.value,
                         "timestamp": metric.timestamp
                     } for metric in device_metrics],
+                    "page": page,
+                    "limit": limit
+                })
+            except Exception as e:
+                logging.error(f"Error fetching device metrics: {str(e)}")
+                return jsonify({"error": str(e)}), 500
+            finally:
+                session.close()
+
+        @self.flask_app.route('/api/weather_data', methods=['GET'])
+        def get_weather_data():
+            session = self.SessionLocal()
+            try:
+                page = request.args.get('page', 1, type=int) or 1
+                limit = request.args.get('limit', 10, type=int) or 10
+                offset = (page - 1) * limit
+
+                third_party_metrics = session.query(ThirdParty).order_by(ThirdParty.timestamp.desc()).offset(offset).limit(limit).all()
+
+                if not third_party_metrics:
+                    logging.warning("No weather data found.")
+                    
+                return jsonify({
                     "third_party_metrics": [{
                         "name": metric.name,
                         "value": metric.value,
@@ -94,7 +116,7 @@ class Application:
                     "limit": limit
                 })
             except Exception as e:
-                logging.error(f"Error fetching metrics: {str(e)}")
+                logging.error(f"Error fetching weather data: {str(e)}")
                 return jsonify({"error": str(e)}), 500
             finally:
                 session.close()
@@ -106,16 +128,15 @@ class Application:
 
     @staticmethod
     @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
-    def fetch_metrics(page=1, limit=10):
-        params = {'page': page, 'limit': limit}
-        response = requests.get('https://michellevaz.pythonanywhere.com/api/metrics', params=params, timeout=300)  # Increase timeout to 300 seconds
+    def fetch_metrics(endpoint, params=None):
+        response = requests.get(endpoint, params=params, timeout=300)
         response.raise_for_status()
         return response.json()
 
     def fetch_weather_data(self):
-        response = requests.get('https://michellevaz.pythonanywhere.com/api/metrics')
-        if response.status_code == 200 and response.content:
-            data = response.json()
+        try:
+            logging.info("Requesting weather data from API...")
+            data = self.fetch_metrics('https://michellevaz.pythonanywhere.com/api/weather_data')
             self.weather_data_cache = {
                 'AirQuality': [metric for metric in data['third_party_metrics'] if 'Air Quality Index' in metric['name']],
                 'Humidity': [metric for metric in data['third_party_metrics'] if 'Humidity' in metric['name']],
@@ -126,14 +147,21 @@ class Application:
                 'WindSpeed': [metric for metric in data['third_party_metrics'] if 'Wind Speed' in metric['name']]
             }
             self.last_updated_time = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime())
-        else:
+            logging.info("Weather data fetched successfully.")
+        except Exception as e:
+            logging.error(f"Error fetching weather data: {str(e)}")
             self.weather_data_cache = {}
             self.last_updated_time = "N/A"
 
     def fetch_device_metrics(self):
-        response = requests.get('https://michellevaz.pythonanywhere.com/api/metrics')
-        data = response.json()
-        self.device_metrics_cache = data['device_metrics']
+        try:
+            logging.info("Requesting device metrics from API...")
+            data = self.fetch_metrics('https://michellevaz.pythonanywhere.com/api/device_metrics')
+            self.device_metrics_cache = data['device_metrics']
+            logging.info("Device metrics fetched successfully.")
+        except Exception as e:
+            logging.error(f"Error fetching device metrics: {str(e)}")
+            self.device_metrics_cache = []
 
     def run(self) -> int:
         """Main application logic."""

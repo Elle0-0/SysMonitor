@@ -1,4 +1,5 @@
 document.addEventListener('DOMContentLoaded', function() {
+    console.log("DOM fully loaded and parsed.");
     let cpuUsageGauge, ramUsageGauge, cpuUsageHistogram, ramUsageHistogram;
     let weatherDataCache = JSON.parse(document.getElementById('weatherData').textContent);
     let deviceMetricsCache = JSON.parse(document.getElementById('deviceMetrics').textContent);
@@ -9,6 +10,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('lastUpdatedTime').innerText = lastUpdatedTime;
 
     window.openTab = function(evt, tabName) {
+        console.log(`Opening tab: ${tabName}`);
         var i, tabcontent, tablinks;
         tabcontent = document.getElementsByClassName("tabcontent");
         for (i = 0; i < tabcontent.length; i++) {
@@ -33,6 +35,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function updateMap(metricType) {
+        console.log(`Updating map for metric type: ${metricType}`);
         if (!map) {
             map = new maplibregl.Map({
                 container: 'map',
@@ -57,11 +60,13 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function clearMarkers() {
+        console.log("Clearing markers.");
         markers.forEach(marker => marker.remove());
         markers = [];
     }
 
     function updateGauges(metricType) {
+        console.log(`Updating gauges for metric type: ${metricType}`);
         const cpuUsageData = deviceMetricsCache.filter(metric => metric.metric_id === 'a96727f1-e90a-4965-831b-af1fd162cfca');
         const ramUsageData = deviceMetricsCache.filter(metric => metric.metric_id === '2c368bee-acbc-45b3-91f8-02fa27b22434');
 
@@ -110,6 +115,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Hide loading screen and show content
+    console.log("Hiding loading screen and showing content.");
     document.getElementById('loading-screen').style.display = 'none';
     document.querySelector('.container').style.display = 'block';
 
