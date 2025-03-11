@@ -13,8 +13,11 @@ document.addEventListener('DOMContentLoaded', function() {
         for (i = 0; i < tablinks.length; i++) {
             tablinks[i].className = tablinks[i].className.replace(" active", "");
         }
-        document.getElementById(tabName).style.display = "block";
-        evt.currentTarget.className += " active";
+        var tab = document.getElementById(tabName);
+        if (tab) {
+            tab.style.display = "block";
+            evt.currentTarget.className += " active";
+        }
 
         // Update map with the selected weather data
         if (tabName in weatherDataCache) {
@@ -37,12 +40,15 @@ document.addEventListener('DOMContentLoaded', function() {
         const metrics = weatherDataCache[metricType] || [];
 
         // Clear existing markers
-        map.eachLayer(function(layer) {
-            if (layer.type === 'symbol') {
-                map.removeLayer(layer.id);
-                map.removeSource(layer.id);
-            }
-        });
+        const layers = map.getStyle().layers;
+        if (layers) {
+            layers.forEach(layer => {
+                if (layer.type === 'symbol') {
+                    map.removeLayer(layer.id);
+                    map.removeSource(layer.id);
+                }
+            });
+        }
 
         metrics.forEach(metric => {
             new maplibregl.Marker()
