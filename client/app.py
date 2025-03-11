@@ -8,6 +8,7 @@ import requests
 from tenacity import retry, stop_after_attempt, wait_fixed
 from flask_caching import Cache
 import time
+from flask import Response
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from lib_utils.blocktimer import BlockTimer
@@ -71,34 +72,25 @@ class Application:
                 logging.error(f"Error processing request: {str(e)}")
                 return jsonify({"error": str(e)}), 500
 
+
         @self.flask_app.route('/api/device_metrics', methods=['GET'])
         def get_device_metrics():
-            session = self.SessionLocal()
-            try:
-                page = request.args.get('page', 1, type=int) or 1
-                limit = request.args.get('limit', 5, type=int) or 5
-                offset = (page - 1) * limit
+            def generate_metrics():
+                session = self.SessionLocal()
+                try:
+                    device_metrics = session.query(DeviceMetric).order_by(DeviceMetric.timestamp.desc()).limit(50).all()
+                    for metric in device_metrics:
+                        yield jsonify({
+                            "device_name": metric.device.name,
+                            "metric_name": metric.metric.name,
+                            "value": metric.value,
+                            "timestamp": metric.timestamp
+                        }).get_data(as_text=True) + "\n"
+                finally:
+                    session.close()
+            
+            return Response(generate_metrics(), content_type='application/json')
 
-                device_metrics = session.query(DeviceMetric).order_by(DeviceMetric.timestamp.desc()).offset(offset).limit(limit).all()
-
-                if not device_metrics:
-                    logging.warning("No device metrics data found.")
-                    
-                return jsonify({
-                    "device_metrics": [{
-                        "device_name": metric.device.name,
-                        "metric_name": metric.metric.name,
-                        "value": metric.value,
-                        "timestamp": metric.timestamp
-                    } for metric in device_metrics],
-                    "page": page,
-                    "limit": limit
-                })
-            except Exception as e:
-                logging.error(f"Error fetching device metrics: {str(e)}")
-                return jsonify({"error": str(e)}), 500
-            finally:
-                session.close()
 
         @self.flask_app.route('/api/weather_data', methods=['GET'])
         def get_weather_data():
@@ -130,8 +122,8 @@ class Application:
 
     @staticmethod
     @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
-    def fetch_metrics(endpoint, params=None):
-        response = requests.get(endpoint, params=params, timeout=10)  # Set a timeout of 10 seconds
+    def fetch_metrics(endpoint, params=None,timeout=30):
+        response = requests.get(endpoint, params=params, timeout=timeout)  # Set a timeout of 10 seconds
         response.raise_for_status()
         return response.json()
 
