@@ -59,7 +59,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     window.startDataCollection = function() {
-        fetch('https://fc8d-193-1-98-140.ngrok-free.app/start_data_collection', {
+        fetch('https://3daa-193-1-98-140.ngrok-free.app/start_data_collection', {
             method: 'POST'
         })
         .then(response => response.json())
@@ -74,7 +74,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     window.stopDataCollection = function() {
-        fetch('https://fc8d-193-1-98-140.ngrok-free.app/stop_data_collection', {
+        fetch('https://3daa-193-1-98-140.ngrok-free.app/stop_data_collection', {
             method: 'POST'
         })
         .then(response => response.json())
@@ -317,4 +317,21 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelector('.container').style.display = 'block';
 
     document.getElementsByClassName("tablink")[0].click();
+
+    // Fetch device metrics every 5 seconds
+    setInterval(() => {
+        fetchMetrics(currentPage, limit);
+    }, 5000);
+
+    // Fetch weather data every 10 minutes
+    setInterval(() => {
+        const weatherType = document.getElementById('weatherTypeDropdown').value;
+        fetch(`/api/weather_data?type=${weatherType}`)
+            .then(response => response.json())
+            .then(data => {
+                weatherDataCache[weatherType] = data.weather_data;
+                updateMap(weatherType);
+            })
+            .catch(error => console.error('Error fetching weather data:', error));
+    }, 600000);
 });
