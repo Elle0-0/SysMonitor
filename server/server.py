@@ -19,7 +19,8 @@ SERVER_URL = "https://michellevaz.pythonanywhere.com/api/update_metrics"
 app = Flask(__name__)
 CORS(app)  # Enable CORS
 
-data_collection_thread = None
+device_metrics_thread = None
+weather_data_thread = None
 stop_event = threading.Event()
 
 @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
@@ -58,29 +59,40 @@ def send_metrics_to_server(device_name, cpu_usage, ram_usage, weather_and_air_qu
         logging.error(f"Response content: {e.response.content if e.response else 'No response'}")  # Log response content if available
         raise
 
-def main():
-    device_name = "MichelleLaptop"  # Define your device name here (this can be dynamic if needed)
+def collect_device_metrics():
+    device_name = "MichelleLaptop"  
     
     while not stop_event.is_set():
-        with BlockTimer("Collecting metrics", logging.getLogger(__name__)):
+        with BlockTimer("Collecting device metrics", logging.getLogger(__name__)):
             cpu_usage = get_cpu_usage()
             ram_usage = get_ram_usage()
-            # Retrieve the weather and air quality data as a list of tuples (name, value)
-            weather_and_air_quality_data = get_weather_and_air_quality_data()
+            weather_and_air_quality_data = []  # No weather data for device metrics
 
         send_metrics_to_server(device_name, cpu_usage, ram_usage, weather_and_air_quality_data)
+        stop_event.wait(5)  # Sleep for 5 seconds
 
-        # Sleep before collecting the data again (adjust interval as needed)
-        stop_event.wait(600)  # Sleep for 10 minutes or until stop_event is set
+def collect_weather_data():
+    device_name = "MichelleLaptop"  
+    
+    while not stop_event.is_set():
+        with BlockTimer("Collecting weather data", logging.getLogger(__name__)):
+            weather_and_air_quality_data = get_weather_and_air_quality_data()
+            cpu_usage = None  # No CPU data for weather metrics
+            ram_usage = None  # No RAM data for weather metrics
+
+        send_metrics_to_server(device_name, cpu_usage, ram_usage, weather_and_air_quality_data)
+        stop_event.wait(600)  # Sleep for 10 minutes
 
 @app.route('/start_data_collection', methods=['POST'])
 def start_data_collection():
-    global data_collection_thread, stop_event
+    global device_metrics_thread, weather_data_thread, stop_event
     try:
-        if data_collection_thread is None or not data_collection_thread.is_alive():
+        if (device_metrics_thread is None or not device_metrics_thread.is_alive()) and (weather_data_thread is None or not weather_data_thread.is_alive()):
             stop_event.clear()
-            data_collection_thread = threading.Thread(target=main)
-            data_collection_thread.start()
+            device_metrics_thread = threading.Thread(target=collect_device_metrics)
+            weather_data_thread = threading.Thread(target=collect_weather_data)
+            device_metrics_thread.start()
+            weather_data_thread.start()
             return jsonify({"message": "Data collection started successfully."}), 200
         else:
             return jsonify({"message": "Data collection is already running."}), 200
