@@ -59,7 +59,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     window.startDataCollection = function() {
-        fetch('https://3daa-193-1-98-140.ngrok-free.app/start_data_collection', {
+        fetch('https://5276-193-1-98-135.ngrok-free.app/start_data_collection', {
             method: 'POST'
         })
         .then(response => response.json())
@@ -73,8 +73,9 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+
     window.stopDataCollection = function() {
-        fetch('https://3daa-193-1-98-140.ngrok-free.app/stop_data_collection', {
+        fetch('https://5276-193-1-98-135.ngrok-free.app/stop_data_collection', {
             method: 'POST'
         })
         .then(response => response.json())
